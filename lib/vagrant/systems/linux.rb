@@ -24,7 +24,7 @@ module Vagrant
       def halt
         vm.env.ui.info I18n.t("vagrant.systems.linux.attempting_halt")
         vm.ssh.execute do |ssh|
-          ssh.exec!("sudo halt")
+          ssh.exec!("sudo shutdown -h now")
         end
 
         # Wait until the VM's state is actually powered off. If this doesn't
@@ -34,8 +34,8 @@ module Vagrant
         while vm.vm.state != :powered_off
           count += 1
 
-          return if count >= vm.env.config.linux.halt_timeout
-          sleep vm.env.config.linux.halt_check_interval
+          return if count >= vm.config.linux.halt_timeout
+          sleep vm.config.linux.halt_check_interval
         end
       end
 

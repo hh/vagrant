@@ -1,7 +1,6 @@
 en:
   vagrant:
     general:
-      creating_home_dir: "Creating home directory since it doesn't exist: %{directory}"
       moving_home_dir: "Moving old Vagrant home directory to new location: %{directory}"
       home_dir_migration_failed: |-
         Both an old and new Vagrant home directory exist. Only the new one will
@@ -44,10 +43,18 @@ en:
         may run at any given time to avoid problems with VirtualBox inconsistencies
         occurring. Please wait for the other instance of Vagrant to end and then
         try again.
+      home_dir_not_accessible: |-
+        The home directory you specified is not accessible. The home
+        directory that Vagrant uses must be both readable and writable.
+
+        You specified: %{home_path}
       interrupted: "Vagrant exited after cleanup due to external interrupt."
       multi_vm_required: "A multi-vm environment is required for name specification to this command."
       multi_vm_target_required: "`vagrant %{command}` requires a specific VM name to target in a multi-VM environment."
       no_env: "No Vagrant environment detected. Run `vagrant init` to set one up."
+      scp_unavailable: |-
+        SSH server on the guest doesn't support SCP. Please install the necessary
+        software to enable SCP on your guest operating system.
       ssh_authentication_failed: |-
         SSH authentication failed! This is typically caused by the public/private
         keypair for the SSH user not being properly set on the guest VM. Please
@@ -376,7 +383,7 @@ en:
           host_required: |-
             A host class is required for NFS shared folders. By default, these
             are auto-detected, but can be overridden with `config.vagrant.host`.
-            There is currently not host class loaded.
+            There is currently no host class loaded.
           no_host_network: |-
             NFS shared folders requires that host only networking is enabled.
             Please enable host only networking via `config.vm.network`.
@@ -425,6 +432,10 @@ en:
             A box already exists under the name of '%{name}'. This may or may
             not be the same box you are trying to add. Please use another name
             or remove the previous box then try to add it again.
+          untar_failure: |-
+            Failed to untar the box file. This is usually because you're
+            attempting to add a box that isn't a valid box file. Please
+            double check that the box file is properly packaged.
         verify:
           verifying: "Verifying box..."
           failed: |-

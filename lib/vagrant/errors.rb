@@ -118,6 +118,11 @@ module Vagrant
       error_key(:does_not_exist, "vagrant.actions.vm.check_box")
     end
 
+    class BoxUnpackageFailure < VagrantError
+      status_code(57)
+      error_key(:untar_failure, "vagrant.actions.box.unpackage")
+    end
+
     class BoxVerificationFailed < VagrantError
       status_code(15)
       error_key(:failed, "vagrant.actions.box.verify")
@@ -161,6 +166,11 @@ module Vagrant
     class HomeDirectoryMigrationFailed < VagrantError
       status_code(53)
       error_key(:home_dir_migration_failed)
+    end
+
+    class HomeDirectoryNotAccessible < VagrantError
+      status_code(55)
+      error_key(:home_dir_not_accessible)
     end
 
     class ForwardPortAutolistEmpty < VagrantError
@@ -238,6 +248,11 @@ module Vagrant
     class PersistDotfileExists < VagrantError
       status_code(34)
       error_key(:dotfile_error, "vagrant.actions.vm.persist")
+    end
+
+    class SCPUnavailable < VagrantError
+      status_code(56)
+      error_key(:scp_unavailable)
     end
 
     class SSHAuthenticationFailed < VagrantError

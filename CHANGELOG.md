@@ -1,6 +1,45 @@
-## 0.8.8 (unreleased)
+## 0.9.0 (unreleased)
 
+  - Logging. The entire Vagrant source has had logging sprinkled throughout
+    to make debugging issues easier. To enable logging, set the VAGRANT_LOG
+    environmental variable to the log level you wish to see. By default,
+    logging is silent.
+  - Linux uses `shutdown -h` instead of `halt` to hopefully more consistently
+    power off the system. [GH-575]
+  - Tweaks to SSH to hopefully be more reliable in coming up.
+  - Helpful error message when SCP is unavailable in the guest. [GH-568]
+  - Error message for improperly packaged box files. [GH-198]
+  - Copy insecure private key to user-owned directory so even
+    `sudo` installed Vagrant installations work. [GH-580]
 
+## 0.8.10 (December 10, 2011)
+
+  - Revert the SSH tweaks made in 0.8.8. It affected stability
+
+## 0.8.8 (December 1, 2011)
+
+  - Mount shared folders shortest to longest to avoid mounting
+    subfolders first. [GH-525]
+  - Support for basic HTTP auth in the URL for boxes.
+  - Solaris support for host only networks. [GH-533]
+  - `vagrant init` respects `Vagrant::Environment` cwd. [GH-528]
+  - `vagrant` commands will not output color when stdout is
+    not a TTY.
+  - Fix issue where `box_url` set with multiple VMs could cause issues. [GH-564]
+  - Chef provisioners no longer depend on a "v-root" share being
+    available. [GH-556]
+  - NFS should work for FreeBSD hosts now. [GH-510]
+  - SSH executed methods respect `config.ssh.max_tries`. [GH-508]
+  - `vagrant box add` now respects the "no_proxy" environmental variable.
+    [GH-502]
+  - Tweaks that should make "Waiting for VM to boot" slightly more
+    reliable.
+  - Add comments to Vagrantfile to make it detected as Ruby file for
+    `vi` and `emacs`. [GH-515]
+  - More correct guest addition version checking. [GH-514]
+  - Chef solo support on Windows is improved. [GH-542]
+  - Put encrypted data bag secret into `/tmp` by default so that
+    permissions are almost certainly guaranteed. [GH-512]
 
 ## 0.8.7 (September 13, 2011)
 
