@@ -46,7 +46,7 @@ module Vagrant
       end
 
       def provision!
-        verify_binary(chef_binary_path("chef-solo"))
+        # verify_binary(chef_binary_path("chef-solo")) # uses sudo 8(
         chown_provisioning_folder
         setup_json
         setup_solo_config
