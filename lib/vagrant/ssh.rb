@@ -83,7 +83,7 @@ module Vagrant
                                                 :user_known_hosts_file => [],
                                                 :paranoid => false,
                                                 :config => false,
-                                                :verbose => env.config.log_level
+                                                :verbose => :debug
                                               ))
         SSH::Session.new(connection, env)
       end
