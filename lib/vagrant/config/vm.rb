@@ -4,8 +4,6 @@ require 'vagrant/config/vm/provisioner'
 module Vagrant
   module Config
     class VMConfig < Base
-      configures :vm
-
       include Util::StackedProcRunner
 
       attr_accessor :name
@@ -19,7 +17,7 @@ module Vagrant
       attr_reader :shared_folders
       attr_reader :network_options
       attr_reader :provisioners
-      attr_accessor :system
+      attr_accessor :guest
 
       def initialize
         @forwarded_ports = {}
@@ -63,7 +61,7 @@ module Vagrant
       end
 
       def provision(name, options=nil, &block)
-        @provisioners << Provisioner.new(top, name, options, &block)
+        @provisioners << Provisioner.new(name, options, &block)
       end
 
       def customize(&block)

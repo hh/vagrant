@@ -290,6 +290,11 @@ module Vagrant
       error_key(:interrupted)
     end
 
+    class VagrantfileExistsError < VagrantError
+      status_code(58)
+      error_key(:vagrantfile_exists)
+    end
+
     class VagrantfileSyntaxError < VagrantError
       status_code(41)
       error_key(:vagrantfile_syntax_error)
@@ -324,6 +329,11 @@ module Vagrant
       error_key(:failed_to_boot, "vagrant.actions.vm.boot")
     end
 
+    class VMGuestError < VagrantError
+      status_code(39)
+      error_namespace("vagrant.errors.guest")
+    end
+
     class VMImportFailure < VagrantError
       status_code(28)
       error_key(:failure, "vagrant.actions.vm.import")
@@ -352,11 +362,6 @@ module Vagrant
     class VMPowerOffToPackage < VagrantError
       status_code(24)
       error_key(:power_off, "vagrant.actions.vm.export")
-    end
-
-    class VMSystemError < VagrantError
-      status_code(39)
-      error_namespace("vagrant.errors.system")
     end
   end
 end

@@ -1,8 +1,8 @@
-require 'vagrant/systems/linux/error'
-require 'vagrant/systems/linux/config'
+require 'vagrant/guest/linux/error'
+require 'vagrant/guest/linux/config'
 
 module Vagrant
-  module Systems
+  module Guest
     class Linux < Base
       def distro_dispatch
         vm.ssh.execute do |ssh|
@@ -22,7 +22,7 @@ module Vagrant
       end
 
       def halt
-        vm.env.ui.info I18n.t("vagrant.systems.linux.attempting_halt")
+        vm.env.ui.info I18n.t("vagrant.guest.linux.attempting_halt")
         vm.ssh.execute do |ssh|
           ssh.exec!("sudo shutdown -h now")
         end

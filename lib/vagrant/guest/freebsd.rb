@@ -1,5 +1,5 @@
 module Vagrant
-  module Systems
+  module Guest
     # A general Vagrant system implementation for "freebsd".
     #
     # Contributed by Kenneth Vestergaard <kvs@binarysolutions.dk>
@@ -9,8 +9,6 @@ module Vagrant
       # generally, Vagrant tries to make almost every aspect of its execution
       # configurable, and this assists that goal.
       class FreeBSDConfig < Vagrant::Config::Base
-        configures :freebsd
-
         attr_accessor :halt_timeout
         attr_accessor :halt_check_interval
 
@@ -22,11 +20,11 @@ module Vagrant
 
       # Here for whenever it may be used.
       class FreeBSDError < Errors::VagrantError
-        error_namespace("vagrant.systems.freebsd")
+        error_namespace("vagrant.guest.freebsd")
       end
 
       def halt
-        vm.env.ui.info I18n.t("vagrant.systems.freebsd.attempting_halt")
+        vm.env.ui.info I18n.t("vagrant.guest.freebsd.attempting_halt")
         vm.ssh.execute do |ssh|
           ssh.exec!("sudo shutdown -p now")
         end

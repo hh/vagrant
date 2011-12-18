@@ -4,6 +4,10 @@
     to make debugging issues easier. To enable logging, set the VAGRANT_LOG
     environmental variable to the log level you wish to see. By default,
     logging is silent.
+  - `system` renamed to `guest` throughout the source. Any `config.vm.system`
+    configurations must be changed to `config.vm.guest`
+  - Removed Thor as a dependency for the command line interfaces. This resulted
+    in general speed increases across all command line commands.
   - Linux uses `shutdown -h` instead of `halt` to hopefully more consistently
     power off the system. [GH-575]
   - Tweaks to SSH to hopefully be more reliable in coming up.
@@ -11,6 +15,9 @@
   - Error message for improperly packaged box files. [GH-198]
   - Copy insecure private key to user-owned directory so even
     `sudo` installed Vagrant installations work. [GH-580]
+  - Provisioner stdout/stderr is now color coded based on stdout/stderr.
+    stdout is green, stderr is red. [GH-595]
+  - "--no-provision" once again works for certain commands. [GH-591]
 
 ## 0.8.10 (December 10, 2011)
 

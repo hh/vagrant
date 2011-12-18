@@ -1,8 +1,6 @@
 module Vagrant
   module Provisioners
     class Shell < Base
-      register :shell
-
       class Config < Vagrant::Config::Base
         attr_accessor :inline
         attr_accessor :path
@@ -16,11 +14,7 @@ module Vagrant
           @args = nil
         end
 
-        def expanded_path
-          Pathname.new(path).expand_path(env.root_path) if path
-        end
-
-        def validate(errors)
+        def validate(env, errors)
           super
 
           # Validate that the parameters are properly set
@@ -31,8 +25,12 @@ module Vagrant
           end
 
           # Validate the existence of a script to upload
-          if path && !expanded_path.file?
-            errors.add(I18n.t("vagrant.provisioners.shell.path_invalid", :path => expanded_path))
+          if path
+            expanded_path = Pathname.new(path).expand_path(env.root_path)
+            if !expanded_path.file?
+              errors.add(I18n.t("vagrant.provisioners.shell.path_invalid",
+                                :path => expanded_path))
+            end
           end
 
           # There needs to be a path to upload the script to
@@ -47,13 +45,17 @@ module Vagrant
         end
       end
 
+      def self.config_class
+        Config
+      end
+
       # This method yields the path to a script to upload and execute
       # on the remote server. This method will properly clean up the
       # script file if needed.
       def with_script_file
         if config.path
           # Just yield the path to that file...
-          yield config.expanded_path
+          yield Pathname.new(config.path).expand_path(env[:root_path])
           return
         end
 
@@ -77,15 +79,20 @@ module Vagrant
 
         with_script_file do |path|
           # Upload the script to the VM
-          vm.ssh.upload!(path.to_s, config.upload_path)
+          env[:vm].ssh.upload!(path.to_s, config.upload_path)
 
           # Execute it with sudo
-          vm.ssh.execute do |ssh|
+          env[:vm].ssh.execute do |ssh|
             ssh.sudo!(commands) do |ch, type, data|
               if type == :exit_status
                 ssh.check_exit_status(data, commands)
               else
-                env.ui.info(data)
+                # Output the data with the proper color based on the stream.
+                color = type == :stdout ? :green : :red
+
+                # Note: Be sure to chomp the data to avoid the newlines that the
+                # Chef outputs.
+                env[:ui].info(data.chomp, :color => color, :prefix => false)
               end
             end
           end

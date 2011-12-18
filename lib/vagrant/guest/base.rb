@@ -1,5 +1,5 @@
 module Vagrant
-  module Systems
+  module Guest
     # The base class for a "system." A system represents an installed
     # operating system on a given box. There are some portions of
     # Vagrant which are fairly OS-specific (such as mounting shared
@@ -16,7 +16,7 @@ module Vagrant
     # changes will be noted on release notes.**
     class Base
       class BaseError < Errors::VagrantError
-        error_namespace("vagrant.systems.base")
+        error_namespace("vagrant.guest.base")
       end
 
       include Vagrant::Util

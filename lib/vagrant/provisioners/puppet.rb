@@ -5,8 +5,6 @@ module Vagrant
     end
 
     class Puppet < Base
-      register :puppet
-
       class Config < Vagrant::Config::Base
         attr_accessor :manifest_file
         attr_accessor :manifests_path
@@ -69,6 +67,10 @@ module Vagrant
         end
       end
 
+      def self.config_class
+        Config
+      end
+
       def prepare
         set_module_paths
         share_manifests
@@ -127,7 +129,12 @@ module Vagrant
             if type == :exit_status
               ssh.check_exit_status(data, commands)
             else
-              env.ui.info(data)
+              # Output the data with the proper color based on the stream.
+              color = type == :stdout ? :green : :red
+
+              # Note: Be sure to chomp the data to avoid the newlines that the
+              # Chef outputs.
+              env[:ui].info(data.chomp, :color => color, :prefix => false)
             end
           end
         end

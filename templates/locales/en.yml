@@ -43,6 +43,18 @@ en:
         may run at any given time to avoid problems with VirtualBox inconsistencies
         occurring. Please wait for the other instance of Vagrant to end and then
         try again.
+      guest:
+        invalid_class: |-
+          The specified guest class does not inherit from `Vagrant::Guest::Base`.
+          The specified guest class must inherit from this class.
+
+          The specified guest class was: %{guest}
+        unknown_type: |-
+          The specified guest type is unknown: %{guest}. Please change this
+          to a proper value.
+        unspecified: |-
+          A VM guest type must be specified! This is done via the `config.vm.guest`
+          configuration value. Please read the documentation online for more information.
       home_dir_not_accessible: |-
         The home directory you specified is not accessible. The home
         directory that Vagrant uses must be both readable and writable.
@@ -103,18 +115,9 @@ en:
 
           http://vagrantup.com/docs/getting-started/setup/windows.html
 
-      system:
-        invalid_class: |-
-          The specified system does not inherit from `Vagrant::Systems::Base`. The
-          specified system class must inherit from this class.
-
-          The specified system class was: %{system}
-        unknown_type: |-
-          The specified system type is unknown: %{system}. Please change this
-          to a proper value.
-        unspecified: |-
-          A VM system type must be specified! This is done via the `config.vm.system`
-          configuration value. Please read the documentation online for more information.
+      vagrantfile_exists: |-
+        `Vagrantfile` already exists in this directory. Remove it before
+        running `vagrant init`.
       vagrantfile_syntax_error: |-
         There is a syntax error in the following Vagrantfile. The syntax error
         message is reproduced below for convenience:
@@ -197,6 +200,12 @@ en:
         vm_not_running: "VM is not currently running. Please bring it up to run this command."
       box:
         no_installed_boxes: "There are no installed boxes! Use `vagrant box add` to add some."
+      init:
+        success: |-
+          A `Vagrantfile` has been placed in this directory. You are now
+          ready to `vagrant up` your first virtual environment! Please read
+          the comments in the Vagrantfile as well as documentation on
+          `vagrantup.com` for more information on using Vagrant.
       status:
         aborted: |-
           The VM is in an aborted state. This means that it was abruptly
@@ -537,7 +546,7 @@ en:
         path_invalid: "`path` for shell provisioner does not exist on the host system: %{path}"
         upload_path_not_set: "`upload_path` must be set for the shell provisioner."
 
-    systems:
+    guest:
       base:
         unsupported_host_only: |-
           Host only networking is very distro-specific. Vagrant has support for many

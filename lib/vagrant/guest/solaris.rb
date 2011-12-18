@@ -1,5 +1,5 @@
 module Vagrant
-  module Systems
+  module Guest
     # A general Vagrant system implementation for "solaris".
     #
     # Contributed by Blake Irvin <b.irvin@modcloth.com>
@@ -9,8 +9,6 @@ module Vagrant
       # generally, Vagrant tries to make almost every aspect of its execution
       # configurable, and this assists that goal.
       class SolarisConfig < Vagrant::Config::Base
-        configures :solaris
-
         attr_accessor :halt_timeout
         attr_accessor :halt_check_interval
         # This sets the command to use to execute items as a superuser. sudo is default
@@ -27,7 +25,7 @@ module Vagrant
 
       # Here for whenever it may be used.
       class SolarisError < Errors::VagrantError
-        error_namespace("vagrant.systems.solaris")
+        error_namespace("vagrant.guest.solaris")
       end
 
       def prepare_host_only_network(net_options=nil)
@@ -63,7 +61,7 @@ module Vagrant
       #
       # does not exist in /etc/user_attr. TODO
       def halt
-        vm.env.ui.info I18n.t("vagrant.systems.solaris.attempting_halt")
+        vm.env.ui.info I18n.t("vagrant.guest.solaris.attempting_halt")
         vm.ssh.execute do |ssh|
           # Wait until the VM's state is actually powered off. If this doesn't
           # occur within a reasonable amount of time (15 seconds by default),

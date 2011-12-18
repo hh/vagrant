@@ -1,9 +1,9 @@
+require 'vagrant/provisioners/chef'
+
 module Vagrant
   module Provisioners
     # This class implements provisioning via chef-solo.
     class ChefSolo < Chef
-      register :chef_solo
-
       extend Util::Counter
       include Util::Counter
 
@@ -23,7 +23,7 @@ module Vagrant
           @nfs = false
         end
 
-        def validate(errors)
+        def validate(env, errors)
           super
 
           errors.add(I18n.t("vagrant.config.chef.cookbooks_path_empty")) if !cookbooks_path || [cookbooks_path].flatten.empty?
@@ -34,6 +34,10 @@ module Vagrant
       attr_reader :cookbook_folders
       attr_reader :role_folders
       attr_reader :data_bags_folders
+
+      def self.config_class
+        Config
+      end
 
       def prepare
         @cookbook_folders = expanded_folders(config.cookbooks_path, "cookbooks")
@@ -68,7 +72,7 @@ module Vagrant
           # Create the local/remote path based on whether this is a host
           # or VM path.
           local_path = nil
-          local_path = File.expand_path(path, env.root_path) if type == :host
+          local_path = File.expand_path(path, env[:root_path]) if type == :host
           remote_path = nil
           if type == :host
             # Path exists on the host, setup the remote path
@@ -98,7 +102,7 @@ module Vagrant
       def share_folders(prefix, folders)
         folders.each do |type, local_path, remote_path|
           if type == :host
-            env.config.vm.share_folder("v-#{prefix}-#{self.class.get_and_update_counter(:shared_folder)}",
+            env[:vm].config.vm.share_folder("v-#{prefix}-#{self.class.get_and_update_counter(:shared_folder)}",
                                        remote_path, local_path, :nfs => config.nfs)
           end
         end
@@ -123,13 +127,18 @@ module Vagrant
         command_env = config.binary_env ? "#{config.binary_env} " : ""
         command = "#{command_env}#{chef_binary_path("chef-solo")} -c #{config.provisioning_path}/solo.rb -j #{config.provisioning_path}/dna.json"
 
-        env.ui.info I18n.t("vagrant.provisioners.chef.running_solo")
-        vm.ssh.execute do |ssh|
+        env[:ui].info I18n.t("vagrant.provisioners.chef.running_solo")
+        env[:vm].ssh.execute do |ssh|
           ssh.sudo!(command) do |channel, type, data|
             if type == :exit_status
               ssh.check_exit_status(data, command)
             else
-              env.ui.info("#{data}: #{type}")
+              # Output the data with the proper color based on the stream.
+              color = type == :stdout ? :green : :red
+
+              # Note: Be sure to chomp the data to avoid the newlines that the
+              # Chef outputs.
+              env[:ui].info(data.chomp, :color => color, :prefix => false)
             end
           end
         end

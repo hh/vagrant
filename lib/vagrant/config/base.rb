@@ -4,19 +4,6 @@ module Vagrant
     # basic things such as the environment instance variable which all
     # config classes need as well as a basic `to_json` implementation.
     class Base
-      # {Top} of this configuration stack
-      attr_accessor :top
-
-      # Registers a subclass with the Vagrant configuration system so
-      # that it can then be used in Vagrantfiles.
-      #
-      # @param [Symbol] accessor The accessor on the main config object
-      #  that is used to access the configuration class.
-      #
-      def self.configures(accessor, klass=self)
-        Top.configures(accessor, klass)
-      end
-
       # Loads configuration values from JSON back into the proper
       # configuration classes. By default, this is done by simply
       # iterating over all values in the JSON hash and assigning them
@@ -61,8 +48,7 @@ module Vagrant
       # the JSON is parsed back, it can be loaded back into the proper class.
       # See {json_create}.
       def to_json(*a)
-        result = { 'json_class' => self.class.name }
-        result.merge(instance_variables_hash).to_json(*a)
+        instance_variables_hash.to_json(*a)
       end
 
       # Returns the instance variables as a hash of key-value pairs.

@@ -1,55 +1,70 @@
-require 'thor'
+require 'log4r'
+require 'optparse'
 
 module Vagrant
-  # Entrypoint for the Vagrant CLI. This class should never be
-  # initialized directly (like a typical Thor class). Instead,
-  # use {Environment#cli} to invoke the CLI.
-  #
-  # # Defining Custom CLI Commands
-  #
-  # If you're looking to define custom CLI commands, then look at
-  # one of the two following classes:
-  #
-  # * {Command::Base} - Implementing a single command such as `vagrant up`, e.g.
-  #   one without subcommands. Also take a look at {Command::NamedBase}.
-  # * {Command::GroupBase} - Implementing a command with subcommands, such as
-  #   `vagrant box`, which has the `list`, `add`, etc. subcommands.
-  #
-  # The above linked classes contain the main documentation for each
-  # type of command.
-  class CLI < Thor
-    # Registers the given class with the CLI so it can be accessed.
-    # The class must be a subclass of either {Command::Base} or {Command::GroupBase}.
-    # Don't call this method directly, instead call the {Command::Base.register}
-    # or {Command::GroupBase.register} methods.
-    #
-    # @param [Class] klass Command class
-    # @param [String] name Command name, accessed at `vagrant NAME`
-    # @param [String] usage Command usage, such as "vagrant NAME [--option]"
-    # @param [String] description Description of the command shown during the
-    #   command listing.
-    # @param [Hash] opts Other options (not gone into detail here, look at
-    #   the source instead).
-    def self.register(klass, name, usage, description, opts=nil)
-      opts ||= {}
+  # Manages the command line interface to Vagrant.
+  class CLI < Command::Base
+    def initialize(argv, env)
+      super
 
-      if klass <= Command::GroupBase
-        # A subclass of GroupBase is a subcommand, since it contains
-        # many smaller commands within it.
-        desc usage, description, opts
-        subcommand name, klass
-      elsif klass <= Command::Base
-        # A subclass of Base is a single command, since it
-        # is invoked as a whole (as Thor::Group)
-        desc usage, description, opts
-        define_method(name) { |*args| invoke klass, args }
+      @logger = Log4r::Logger.new("vagrant::cli")
+      @main_args, @sub_command, @sub_args = split_main_and_subcommand(argv)
+
+      @logger.info("CLI: #{@main_args.inspect} #{@sub_command.inspect} #{@sub_args.inspect}")
+    end
+
+    def execute
+      if @main_args.include?("-v") || @main_args.include?("--version")
+        # Version short-circuits the whole thing. Just print
+        # the version and exit.
+        @env.ui.info(I18n.t("vagrant.commands.version.output",
+                            :version => Vagrant::VERSION),
+                     :prefix => false)
+
+        return
+      elsif @main_args.include?("-h") || @main_args.include?("--help")
+        # Help is next in short-circuiting everything. Print
+        # the help and exit.
+        return help
       end
 
-      if opts[:alias]
-        # Alises are defined for this command, so properly alias the
-        # newly defined method/subcommand:
-        map opts[:alias] => name
+      # If we reached this far then we must have a subcommand. If not,
+      # then we also just print the help and exit.
+      command_class = Vagrant.commands.get(@sub_command.to_sym) if @sub_command
+      return help if !command_class || !@sub_command
+      @logger.debug("Invoking command class: #{command_class} #{@sub_args.inspect}")
+
+      # Initialize and execute the command class.
+      command_class.new(@sub_args, @env).execute
+    end
+
+    # This prints out the help for the CLI.
+    def help
+      # We use the optionparser for this. Its just easier. We don't use
+      # an optionparser above because I don't think the performance hits
+      # of creating a whole object are worth checking only a couple flags.
+      opts = OptionParser.new do |opts|
+        opts.banner = "Usage: vagrant [-v] [-h] command [<args>]"
+        opts.separator ""
+        opts.on("-v", "--version", "Print the version and exit.")
+        opts.on("-h", "--help", "Print this help.")
+        opts.separator ""
+        opts.separator "Available subcommands:"
+
+        # Add the available subcommands as separators in order to print them
+        # out as well.
+        keys = []
+        Vagrant.commands.each { |key, value| keys << key }
+
+        keys.sort.each do |key|
+          opts.separator "     #{key}"
+        end
+
+        opts.separator ""
+        opts.separator "For help on any individual command run `vagrant COMMAND -h`"
       end
+
+      @env.ui.info(opts.help, :prefix => false)
     end
   end
 end
