@@ -41,6 +41,10 @@ module Acceptance
       @text =~ /^Vagrant version #{version}$/
     end
 
+    def resume_port_collision
+      @text =~ /^This VM cannot be resumed, because the forwarded ports/
+    end
+
     # This checks that the VM with the given `vm_name` has the
     # status of `status`.
     def status(vm_name, status)
