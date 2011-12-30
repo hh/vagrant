@@ -138,6 +138,11 @@ module Vagrant
       error_key(:config_validation)
     end
 
+    class DeprecationError < VagrantError
+      status_code(60)
+      error_key(:deprecation)
+    end
+
     class DotfileIsDirectory < VagrantError
       status_code(46)
       error_key(:dotfile_is_directory)
@@ -183,6 +188,11 @@ module Vagrant
       error_key(:collision_error, "vagrant.actions.vm.forward_ports")
     end
 
+    class ForwardPortCollisionResume < VagrantError
+      status_code(62)
+      error_key(:port_collision_resume)
+    end
+
     class MultiVMEnvironmentRequired < VagrantError
       status_code(5)
       error_key(:multi_vm_required)
@@ -201,13 +211,6 @@ module Vagrant
     class NetworkNotFound < VagrantError
       status_code(30)
       error_key(:not_found, "vagrant.actions.vm.network")
-    end
-
-    # Note: This is a temporary error for Windows users while host-only
-    # networking doesn't quite work.
-    class NetworkNotImplemented < VagrantError
-      status_code(49)
-      error_key(:windows_not_implemented, "vagrant.actions.vm.network")
     end
 
     class NFSHostRequired < VagrantError
@@ -300,6 +303,11 @@ module Vagrant
       error_key(:vagrantfile_syntax_error)
     end
 
+    class VBoxManageError < VagrantError
+      status_code(59)
+      error_key(:vboxmanage_error)
+    end
+
     class VirtualBoxInvalidVersion < VagrantError
       status_code(17)
       error_key(:virtualbox_invalid_version)
@@ -310,18 +318,14 @@ module Vagrant
       error_key(:virtualbox_not_detected)
     end
 
-    # Note that this is a subclass of VirtualBoxNotDetected, so developers
-    # who script Vagrant or use it as a library in any way can rescue from
-    # "VirtualBoxNotDetected" and catch both errors, which represent the
-    # same thing. This subclass simply has a specialized error message.
-    class VirtualBoxNotDetected_Win64 < VirtualBoxNotDetected
-      status_code(48)
-      error_key(:virtualbox_not_detected_win64)
-    end
-
     class VMBaseMacNotSpecified < VagrantError
       status_code(47)
       error_key(:no_base_mac, "vagrant.actions.vm.match_mac")
+    end
+
+    class VMCustomizationFailed < VagrantError
+      status_code(61)
+      error_key(:failure, "vagrant.actions.vm.customize")
     end
 
     class VMFailedToBoot < VagrantError
@@ -342,6 +346,11 @@ module Vagrant
     class VMInaccessible < VagrantError
       status_code(54)
       error_key(:vm_inaccessible)
+    end
+
+    class VMNoMatchError < VagrantError
+      status_code(63)
+      error_key(:vm_no_match)
     end
 
     class VMNotCreatedError < VagrantError

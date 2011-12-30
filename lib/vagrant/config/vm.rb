@@ -4,8 +4,6 @@ require 'vagrant/config/vm/provisioner'
 module Vagrant
   module Config
     class VMConfig < Base
-      include Util::StackedProcRunner
-
       attr_accessor :name
       attr_accessor :auto_port_range
       attr_accessor :box
@@ -17,6 +15,7 @@ module Vagrant
       attr_reader :shared_folders
       attr_reader :network_options
       attr_reader :provisioners
+      attr_reader :customizations
       attr_accessor :guest
 
       def initialize
@@ -24,6 +23,7 @@ module Vagrant
         @shared_folders = {}
         @network_options = []
         @provisioners = []
+        @customizations = []
       end
 
       def forward_port(name, guestport, hostport, options=nil)
@@ -35,7 +35,7 @@ module Vagrant
           :auto       => false
         }.merge(options || {})
 
-        forwarded_ports[name] = options
+        forwarded_ports[name.to_s] = options
       end
 
       def share_folder(name, guestpath, hostpath, opts=nil)
@@ -64,8 +64,25 @@ module Vagrant
         @provisioners << Provisioner.new(name, options, &block)
       end
 
-      def customize(&block)
-        push_proc(&block)
+      # TODO: This argument should not be `nil` in the future.
+      # It is only defaulted to nil so that the deprecation error
+      # can be properly shown.
+      def customize(command=nil)
+        if block_given?
+          raise Errors::DeprecationError, :message => <<-MESSAGE
+`config.vm.customize` now takes an array of arguments to send to
+`VBoxManage` instead of having a block which gets a virtual machine
+object. Example of the new usage:
+
+    config.vm.customize ["modifyvm", :id, "--memory", "1024"]
+
+The above will run `VBoxManage modifyvm 1234 --memory 1024` where
+"1234" is the ID of your current virtual machine. Anything you could
+do before is certainly still possible with `VBoxManage` as well.
+          MESSAGE
+        end
+
+        @customizations << command if command
       end
 
       def defined_vms
@@ -89,13 +106,13 @@ module Vagrant
         # Add the SubVM to the hash of defined VMs
         defined_vms[name] ||= SubVM.new
         defined_vms[name].options.merge!(options)
-        defined_vms[name].push_proc(&block)
+        defined_vms[name].push_proc(&block) if block
       end
 
       def validate(env, errors)
         errors.add(I18n.t("vagrant.config.vm.box_missing")) if !box
         errors.add(I18n.t("vagrant.config.vm.box_not_found", :name => box)) if box && !box_url && !env.boxes.find(box)
-        errors.add(I18n.t("vagrant.config.vm.boot_mode_invalid")) if ![:vrdp, :gui].include?(boot_mode.to_sym)
+        errors.add(I18n.t("vagrant.config.vm.boot_mode_invalid")) if ![:headless, :gui].include?(boot_mode.to_sym)
         errors.add(I18n.t("vagrant.config.vm.base_mac_invalid")) if env.boxes.find(box) && !base_mac
 
         shared_folders.each do |name, options|
@@ -129,12 +146,7 @@ module Vagrant
 
         # Each provisioner can validate itself
         provisioners.each do |prov|
-          # TODO: Remove at some point
-          if prov.shortcut == :chef_server
-            errors.add(I18n.t("vagrant.config.vm.provisioner_chef_server_changed"))
-          else
-            prov.validate(env, errors)
-          end
+          prov.validate(env, errors)
         end
       end
     end

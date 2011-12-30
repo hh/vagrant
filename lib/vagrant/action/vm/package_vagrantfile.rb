@@ -1,9 +1,12 @@
+require 'vagrant/util/template_renderer'
+
 module Vagrant
   module Action
     module VM
       # Puts a generated Vagrantfile into the package directory so that
       # it can be included in the package.
       class PackageVagrantfile
+        # For TemplateRenderer
         include Util
 
         def initialize(app, env)
@@ -23,7 +26,7 @@ module Vagrant
         def create_vagrantfile
           File.open(File.join(@env["export.temp_dir"], "Vagrantfile"), "w") do |f|
             f.write(TemplateRenderer.render("package_Vagrantfile", {
-              :base_mac => @env["vm"].vm.network_adapters.first.mac_address
+              :base_mac => @env["vm"].driver.read_mac_address
             }))
           end
         end

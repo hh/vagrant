@@ -22,7 +22,7 @@ module Vagrant
       end
 
       def halt
-        vm.env.ui.info I18n.t("vagrant.guest.linux.attempting_halt")
+        vm.ui.info I18n.t("vagrant.guest.linux.attempting_halt")
         vm.ssh.execute do |ssh|
           ssh.exec!("sudo shutdown -h now")
         end
@@ -31,7 +31,7 @@ module Vagrant
         # occur within a reasonable amount of time (15 seconds by default),
         # then simply return and allow Vagrant to kill the machine.
         count = 0
-        while vm.vm.state != :powered_off
+        while vm.state != :poweroff
           count += 1
 
           return if count >= vm.config.linux.halt_timeout

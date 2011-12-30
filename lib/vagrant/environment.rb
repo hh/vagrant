@@ -36,27 +36,6 @@ module Vagrant
     # The path to the default private key
     attr_reader :default_private_key_path
 
-    #---------------------------------------------------------------
-    # Class Methods
-    #---------------------------------------------------------------
-    class << self
-      # Verifies that VirtualBox is installed and that the version of
-      # VirtualBox installed is high enough.
-      def check_virtualbox!
-        version = VirtualBox.version
-        raise Errors::VirtualBoxNotDetected if version.nil?
-        raise Errors::VirtualBoxInvalidVersion, :version => version.to_s if version.to_f < 4.1 || version.to_f >= 4.2
-      rescue Errors::VirtualBoxNotDetected
-        # On 64-bit Windows, show a special error. This error is a subclass
-        # of VirtualBoxNotDetected, so libraries which use Vagrant can just
-        # rescue VirtualBoxNotDetected.
-        raise Errors::VirtualBoxNotDetected_Win64 if Util::Platform.windows? && Util::Platform.bit64?
-
-        # Otherwise, reraise the old error
-        raise
-      end
-    end
-
     # Initializes a new environment with the given options. The options
     # is a hash where the main available key is `cwd`, which defines where
     # the environment represents. There are other options available but
@@ -196,7 +175,7 @@ module Vagrant
     #
     # @return [Action::Runner]
     def action_runner
-      @action_runner ||= Action::Runner.new(action_registry) do |env|
+      @action_runner ||= Action::Runner.new(action_registry) do
         {
           :action_runner  => action_runner,
           :box_collection => boxes,
@@ -331,10 +310,6 @@ module Vagrant
     def load!
       if !loaded?
         @loaded = true
-
-        @logger.info("Environment not loaded. Checking virtual box version...")
-        self.class.check_virtualbox!
-
         @logger.info("Loading configuration...")
         load_config!
       end
@@ -443,20 +418,9 @@ module Vagrant
     def load_vms!
       result = {}
 
-      # Load the VM UUIDs from the local data store
-      (local_data[:active] || {}).each do |name, uuid|
-        vm = VirtualBox::VM.find(uuid)
-        result[name.to_sym] = Vagrant::VM.new(name.to_sym,
-                                              self,
-                                              config.for_vm(name.to_sym),
-                                              vm)
-      end
-
-      # For any VMs which aren't created, create a blank VM instance for them.
+      # Load all the virtual machine instances.
       config.vms.each do |name|
-        if !result.has_key?(name)
-          result[name] = Vagrant::VM.new(name, self, config.for_vm(name))
-        end
+        result[name] = Vagrant::VM.new(name, self, config.for_vm(name))
       end
 
       result

@@ -4,20 +4,29 @@ module Vagrant
   class VM
     include Vagrant::Util
 
+    attr_reader :uuid
     attr_reader :env
     attr_reader :name
     attr_reader :vm
     attr_reader :box
     attr_reader :config
+    attr_reader :driver
 
-    def initialize(name, env, config, vm=nil)
+    def initialize(name, env, config)
       @logger = Log4r::Logger.new("vagrant::vm")
 
       @name   = name
-      @vm     = vm
+      @vm     = nil
       @env    = env
       @config = config
       @box    = env.boxes.find(config.vm.box)
+
+      # Load the UUID if its saved.
+      active = env.local_data[:active] || {}
+      @uuid = active[@name.to_s]
+
+      # Reload ourselves to get the state
+      reload!
 
       # Load the associated guest.
       load_guest!
@@ -48,7 +57,7 @@ module Vagrant
     # Returns the guest for this VM, loading the distro of the system if
     # we can.
     def guest
-      if !@loaded_guest_distro && created? && vm.running?
+      if !@loaded_guest_distro && state == :running
         # Load the guest distro for the first time
         result = @guest.distro_dispatch
         load_guest!(result)
@@ -65,24 +74,32 @@ module Vagrant
       @ssh ||= SSH.new(self)
     end
 
+    # Returns the state of the VM as a symbol.
+    #
+    # @return [Symbol]
+    def state
+      return :not_created if !@uuid
+      state = @driver.read_state
+      return :not_created if !state
+      return state
+    end
+
     # Returns a boolean true if the VM has been created, otherwise
     # returns false.
     #
     # @return [Boolean]
     def created?
-      !vm.nil?
+      state != :not_created
     end
 
     # Sets the currently active VM for this VM. If the VM is a valid,
     # created virtual machine, then it will also update the local data
     # to persist the VM. Otherwise, it will remove itself from the
     # local data (if it exists).
-    def vm=(value)
-      @vm = value
+    def uuid=(value)
       env.local_data[:active] ||= {}
-
-      if value && value.uuid
-        env.local_data[:active][name.to_s] = value.uuid
+      if value
+        env.local_data[:active][name.to_s] = value
       else
         env.local_data[:active].delete(name.to_s)
       end
@@ -90,14 +107,21 @@ module Vagrant
       # Commit the local data so that the next time vagrant is initialized,
       # it realizes the VM exists
       env.local_data.commit
-    end
 
-    def uuid
-      vm ? vm.uuid : nil
+      # Store the uuid and reload the instance
+      @uuid = value
+      reload!
     end
 
     def reload!
-      @vm = VirtualBox::VM.find(@vm.uuid)
+      begin
+        @driver = Driver::VirtualBox.new(@uuid)
+      rescue Driver::VirtualBox::VMNotFound
+        # Clear the UUID since this VM doesn't exist. Note that this calls
+        # back into `reload!` but shouldn't ever result in infinite
+        # recursion since `@uuid` will be nil.
+        self.uuid = nil
+      end
     end
 
     def package(options=nil)
@@ -109,9 +133,8 @@ module Vagrant
     end
 
     def start(options=nil)
-      raise Errors::VMInaccessible if !@vm.accessible?
-      return if @vm.running?
-      return resume if @vm.saved?
+      return if state == :running
+      return resume if state == :saved
 
       run_action(:start, options)
     end
@@ -139,12 +162,6 @@ module Vagrant
     def resume
       run_action(:resume)
     end
-
-    def saved?
-      @vm.saved?
-    end
-
-    def powered_off?; @vm.powered_off? end
 
     def ui
       return @_ui if defined?(@_ui)
