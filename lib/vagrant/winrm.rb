@@ -7,10 +7,10 @@ class WinRM::WinRMWebService
     command_output = get_command_output(shell_id, command_id) #, &block)
     cleanup_command(shell_id, command_id)
     close_shell(shell_id)
-    command_output
-    /PSVersion\W*(\d+.\d+)/.match(command_output[:data].map {|x| x[:stdout]}.join) do |m|
-      puts m[1]
-    end
+    #command_output
+    /PSVersion\W*(\d+.\d+)/.match(
+      command_output[:data].map {|x| x[:stdout]}.join
+      ) { |m| m[1] }
   end
   def run_powershell_script(script_file, &block)
     # if an IO object is passed read it..otherwise assume the contents of the file were passed
@@ -46,7 +46,7 @@ module Vagrant
     def initialize(environment)
       @env = environment
       @winrm = WinRM::WinRMWebService.new(
-        'http://localhost:5985/wsman',
+        "http://localhost:#{port}/wsman",
         :plaintext,
         :user => 'Administrator',
         :pass => 'vagrant',
@@ -67,7 +67,6 @@ module Vagrant
 Som fancy powershell script for upload a file from local disk
 EOS
         @winrm.run_powershell_script(script) do |stdout, stderr|
-          puts stdout
         end
       end
     end
@@ -82,7 +81,7 @@ EOS
       ssh_port = port
 
       require 'timeout'
-      Timeout.timeout(env.config.ssh.timeout) do
+      Timeout.timeout(@env.config.ssh.timeout) do
         execute 'hostname'
       end
 
@@ -102,7 +101,7 @@ EOS
       return opts[:port] if opts[:port]
 
       # Check if a port was specified in the config
-      return env.config.ssh.port if env.config.ssh.port
+      return @env.config.ssh.port if @env.config.ssh.port
 
       # Check if we have an SSH forwarded port
       pnum_by_name = nil

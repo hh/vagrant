@@ -1,6 +1,28 @@
 require File.expand_path("../../base", __FILE__)
 
 describe Vagrant::WINRM do
+  let(:environment) do
+    i=isolated_environment
+    i
+  end
+
+  context "in getting on the ground" do
+   it "casfdaonnects?" do
+      @network_adapters = []
+      @vm = mock("vm")
+      @vm.stubs(:network_adapters).returns(@network_adapters)
+      # for @env.config.ssh.port returing '59856'
+      @ssh = mock('ssh')
+      @ssh.stubs(:port).returns('59856')
+      @config = mock("config")
+      @config.stubs(:ssh).returns(@ssh)
+      @env.stubs(:config).returns(@config)
+      @env.vm.stubs(:vm).returns(@vm)
+      puts @env.inspect #nil
+      t=Vagrant::WINRM.new @env
+      t.execute ''
+    end
+  end
   context "connecting to external WINRM" do
     it "should raise an exception if winrm gem isn't avaliable"
   end

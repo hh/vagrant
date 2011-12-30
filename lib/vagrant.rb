@@ -36,6 +36,7 @@ module Vagrant
   autoload :Provisioners,  'vagrant/provisioners'
   autoload :Registry,      'vagrant/registry'
   autoload :SSH,           'vagrant/ssh'
+  autoload :WINRM,         'vagrant/winrm'
   autoload :TestHelpers,   'vagrant/test_helpers'
   autoload :UI,            'vagrant/ui'
   autoload :Util,          'vagrant/util'
