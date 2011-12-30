@@ -1,11 +1,18 @@
 ## 0.9.0 (unreleased)
 
+  - `config.vm.customize` now takes a command to send to `VBoxManage`, so any
+    arbitrary command can be sent. The older style of passing a block no longer
+    works and Vagrant will give a proper error message if it notices this old-style
+    being used.
   - Logging. The entire Vagrant source has had logging sprinkled throughout
     to make debugging issues easier. To enable logging, set the VAGRANT_LOG
     environmental variable to the log level you wish to see. By default,
     logging is silent.
   - `system` renamed to `guest` throughout the source. Any `config.vm.system`
     configurations must be changed to `config.vm.guest`
+  - All Vagrant commands that take a VM name in a Multi-VM environment
+    can now be given a regular expression. If the name starts and ends with a "/"
+    then it is assumed to be a regular expression. [GH-573]
   - Removed Thor as a dependency for the command line interfaces. This resulted
     in general speed increases across all command line commands.
   - Linux uses `shutdown -h` instead of `halt` to hopefully more consistently
@@ -18,6 +25,13 @@
   - Provisioner stdout/stderr is now color coded based on stdout/stderr.
     stdout is green, stderr is red. [GH-595]
   - "--no-provision" once again works for certain commands. [GH-591]
+  - Resuming a VM from a saved state will show an error message if there
+    would be port collisions. [GH-602]
+  - `vagrant ssh -c` will now exit with the same exit code as the command
+    run. [GH-598]
+  - `vagrant ssh -c` will now send stderr to stderr and stdout to stdout
+    on the host machine, instead of all output to stdout.
+  - Vagrant can now be interrupted during the "importing" step.
 
 ## 0.8.10 (December 10, 2011)
 

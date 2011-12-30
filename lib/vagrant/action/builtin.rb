@@ -22,6 +22,7 @@ module Vagrant
           use VM::CheckAccessible
           use VM::CleanMachineFolder
           use VM::ClearForwardedPorts
+          use VM::CheckPortCollisions, :port_collision_handler => :correct
           use VM::ForwardPorts
           use VM::Provision
           use VM::NFS
@@ -30,7 +31,6 @@ module Vagrant
           use VM::HostName
           use VM::Network
           use VM::Customize
-          use VM::Modify
           use VM::Boot
         end
       end
@@ -60,6 +60,7 @@ module Vagrant
         Builder.new do
           use General::Validate
           use VM::CheckAccessible
+          use VM::CheckPortCollisions
           use VM::Resume
         end
       end
@@ -81,9 +82,8 @@ module Vagrant
           use VM::CheckAccessible
           use VM::CheckBox
           use VM::Import
-          use VM::MatchMACAddress
           use VM::CheckGuestAdditions
-          use VM::DefaultName
+          use VM::MatchMACAddress
           use registry.get(:start)
         end
       end
@@ -106,11 +106,11 @@ module Vagrant
       registry.register(:package) do
         Builder.new do
           use General::Validate
+          use VM::SetupPackageFiles
           use VM::CheckAccessible
           use registry.get(:halt)
           use VM::ClearForwardedPorts
           use VM::ClearSharedFolders
-          use VM::Modify
           use VM::Export
           use VM::PackageVagrantfile
           use VM::Package

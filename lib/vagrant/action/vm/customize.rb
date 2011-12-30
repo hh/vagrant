@@ -7,15 +7,25 @@ module Vagrant
         end
 
         def call(env)
-          if !env[:vm].config.vm.proc_stack.empty?
-            # Create the proc which runs all of our procs
-            proc = lambda do |vm|
-              env[:ui].info I18n.t("vagrant.actions.vm.customize.running")
-              env[:vm].config.vm.run_procs!(vm)
-            end
+          customizations = env[:vm].config.vm.customizations
+          if !customizations.empty?
+            env[:ui].info I18n.t("vagrant.actions.vm.customize.running")
 
-            # Add it to modify sequence
-            env["vm.modify"].call(proc)
+            # Execute each customization command.
+            customizations.each do |command|
+              processed_command = command.collect do |arg|
+                arg = env[:vm].uuid if arg == :id
+                arg
+              end
+
+              result = env[:vm].driver.execute_command(processed_command)
+              if result.exit_code != 0
+                raise Errors::VMCustomizationFailed, {
+                  :command => processed_command.inspect,
+                  :error   => result.stderr
+                }
+              end
+            end
           end
 
           @app.call(env)

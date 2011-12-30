@@ -31,6 +31,12 @@ en:
         are printed below:
 
         %{messages}
+      deprecation: |-
+        You are using a feature that has been removed in this version. Explanation:
+
+        %{message}
+
+        Note that this error message will not appear in the next version of Vagrant.
       dotfile_is_directory: |-
         The local file Vagrant uses to store data ".vagrant" already exists
         and is a directory! If you are in your home directory, then please run
@@ -61,10 +67,17 @@ en:
         You specified: %{home_path}
       interrupted: "Vagrant exited after cleanup due to external interrupt."
       multi_vm_required: "A multi-vm environment is required for name specification to this command."
-      multi_vm_target_required: "`vagrant %{command}` requires a specific VM name to target in a multi-VM environment."
+      multi_vm_target_required: |-
+        This command requires a specific VM name to target in a multi-VM environment.
       no_env: |-
         A Vagrant environment is required to run this command. Run `vagrant init`
         to set one up.
+      port_collision_resume: |-
+        This VM cannot be resumed, because the forwarded ports would collide with
+        another running virtual machine. Normally, Vagrant will attempt to fix this
+        for you but VirtualBox only allows forwarded ports to change if the VM is
+        powered off. Therefore, please reload your VM or halt the other running
+        VMs to continue.
       scp_unavailable: |-
         SSH server on the guest doesn't support SCP. Please install the necessary
         software to enable SCP on your guest operating system.
@@ -124,6 +137,13 @@ en:
         message is reproduced below for convenience:
 
         %{file}
+      vboxmanage_error: |-
+        There was an error executing the following command with VBoxManage:
+
+        %{command}
+
+        For more information on the failure, enable detailed logging with
+        VAGRANT_LOG.
       virtualbox_invalid_version: |-
         Vagrant has detected that you have VirtualBox version %{version} installed!
         Vagrant requires that you use at least VirtualBox version 4.1. Please install
@@ -137,31 +157,21 @@ en:
         for any announcements of newer versions.
       virtualbox_not_detected: |-
         Vagrant could not detect VirtualBox! Make sure VirtualBox is properly installed.
-        If VirtualBox is installed, it may be an incorrect version. Vagrant currently
-        requires VirtualBox 4.1.x. Please install the proper version to continue.
-
-        If you have an older or newer version of VirtualBox, please make sure you're
-        using the proper version of Vagrant. Ask the mailing list if you have questions.
-      virtualbox_not_detected_win64: |-
-        Vagrant could not detect VirtualBox! Make sure VirtualBox is properly installed
-        with version 4.0.0 or higher.
-
-        Additionally, it appears you're on 64-bit Windows. If this is the case, and
-        VirtualBox is properly installed with the correct version, then please make
-        sure you're running Vagrant via JRuby on a 64-bit Java runtime. For more
-        information on how to set this up and how to verify it is properly setup,
-        please view the guide online at:
-
-          http://vagrantup.com/docs/getting-started/setup/windows_x64.html
-
+        Vagrant uses the `VBoxManage` binary that ships with VirtualBox, and requires
+        this to be available on the PATH. If VirtualBox is installed, please find the
+        `VBoxManage` binary and add it to the PATH environmental variable.
       vm_creation_required: "VM must be created before running this command. Run `vagrant up` first."
       vm_inaccessible: |-
         Your VM has become "inaccessible." Unfortunately, this is a critical error
         with VirtualBox that Vagrant can not cleanly recover from. Please open VirtualBox
         and clear out your inaccessible virtual machines or find a way to fix
         them.
-      vm_not_found: "A VM by the name of %{name} was not found."
-      vm_not_running: "VM must be running to open SSH connection."
+      vm_no_match: |-
+        No virtual machines matched the regular expression given.
+      vm_not_found: |-
+        A VM by the name of %{name} was not found.
+      vm_not_running: |-
+        VM must be running to open SSH connection.
 
 #-------------------------------------------------------------------------------
 # Translations for config validation errors
@@ -178,7 +188,7 @@ en:
         private_key_missing: "`private_key_path` file must exist: %{path}"
       vm:
         base_mac_invalid: "Base MAC address for eth0/NAT must be set. Contact box maintainer for more information."
-        boot_mode_invalid: "Boot mode must be one of: vrdp or gui"
+        boot_mode_invalid: "Boot mode must be one of: headless or gui"
         box_missing: "A box must be specified."
         box_not_found: "The box '%{name}' could not be found."
         network_ip_invalid: "The host only network IP '%{ip}' is invalid."
@@ -188,7 +198,6 @@ en:
         shared_folder_hostpath_missing: "Shared folder host path for '%{name}' doesn't exist: %{path}"
         shared_folder_nfs_owner_group: |-
           Shared folder '%{name}': NFS does not support the owner/group settings.
-        provisioner_chef_server_changed: "The provisioner 'chef_server' is now 'chef_client'"
         provisioner_not_found: "The provisioner '%{shortcut}' doesn't exist."
         provisioner_invalid_class: "The provisioner '%{shortcut}' must inherit from `Vagrant::Provisioners::Base`."
 
@@ -227,13 +236,15 @@ en:
         not_created: |-
           The environment has not yet been created. Run `vagrant up` to
           create the environment.
-        powered_off: The VM is powered off. To restart the VM, simply run `vagrant up`
+        poweroff: |-
+          The VM is powered off. To restart the VM, simply run `vagrant up`
         running: |-
           The VM is running. To stop this VM, you can run `vagrant halt` to
           shut it down forcefully, or you can run `vagrant suspend` to simply
           suspend the virtual machine. In either case, to restart it again,
           simply run `vagrant up`.
-        saved: To resume this VM, simply run `vagrant up`.
+        saved: |-
+          To resume this VM, simply run `vagrant up`.
         stuck: |-
           The VM is "stuck!" This is a very rare state which means that
           VirtualBox is unable to recover the current state of the VM.
@@ -298,6 +309,16 @@ en:
         clear_shared_folders:
           deleting: Cleaning previously set shared folders...
         customize:
+          failure: |-
+            A customization command failed:
+
+            %{command}
+
+            The following error was experienced:
+
+            %{error}
+
+            Please fix this customization and try again.
           running: Running any VM customizations...
         destroy:
           destroying: Destroying VM and associated drives...
@@ -334,8 +355,7 @@ en:
           forwarding: Forwarding ports...
           forwarding_entry: "-- %{name}: %{guest_port} => %{host_port} (adapter %{adapter})"
           non_nat: |-
-            VirtualBox adapter #%{adapter} not configured as "NAT"
-            Skipping port forwarding '%{name}'.
+            VirtualBox adapter #%{adapter} not configured as "NAT". Skipping: '%{name}'.
           privileged_ports: |-
             You are trying to forward to privileged ports (ports <= 1024). Most
             operating systems restrict this to only privileged process (typically
@@ -372,11 +392,6 @@ en:
             host only network for you. Alternatively, please create the
             specified network manually.
           preparing: "Preparing host only network..."
-          windows_not_implemented: |-
-            Host only networking is currently broken on Windows due to a bug
-            in jruby-win32ole. When the bug is fixed, a patch release for Vagrant
-            will be released to remove this error. Until then, please just use
-            forwarded ports.
         nfs:
           host_required: |-
             A host class is required for NFS shared folders. By default, these
