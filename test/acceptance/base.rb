@@ -11,6 +11,7 @@ require "acceptance/support/shared/base_context"
 require "acceptance/support/config"
 require "acceptance/support/virtualbox"
 require "acceptance/support/matchers/match_output"
+require "acceptance/support/matchers/succeed"
 
 # Do not buffer output
 $stdout.sync = true
@@ -23,10 +24,10 @@ if Acceptance::VirtualBox.find_vboxsvc
 end
 
 # Enable logging if requested
-if ENV["ACCEPTANCE_LOGGING"]
-  logger = Log4r::Logger.new("acceptance")
+if ENV["ACCEPTANCE_LOG"]
+  logger = Log4r::Logger.new("test")
   logger.outputters = Log4r::Outputter.stdout
-  logger.level = Log4r.const_get(ENV["ACCEPTANCE_LOGGING"].upcase)
+  logger.level = Log4r.const_get(ENV["ACCEPTANCE_LOG"].upcase)
   logger = nil
 end
 

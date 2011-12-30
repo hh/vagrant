@@ -23,14 +23,6 @@ module Vagrant
         instance_eval(&block) if block_given?
       end
 
-      # Returns the current stack of middlewares. You probably won't
-      # need to use this directly, and it's recommended that you don't.
-      #
-      # @return [Array]
-      def stack
-        @stack ||= []
-      end
-
       # Returns a mergeable version of the builder. If `use` is called with
       # the return value of this method, then the stack will merge, instead
       # of being treated as a separate single middleware.
@@ -46,10 +38,12 @@ module Vagrant
       #
       # @param [Class] middleware The middleware class
       def use(middleware, *args, &block)
-        if middleware.kind_of?(Builder)
-          # Prepend with a environment setter if args are given
-          self.use(Env::Set, *args, &block) if !args.empty? && args.first.is_a?(Hash)
+        # Prepend with a environment setter if args are given
+        if !args.empty? && args.first.is_a?(Hash) && middleware != Env::Set
+          self.use(Env::Set, args.shift, &block)
+        end
 
+        if middleware.kind_of?(Builder)
           # Merge in the other builder's stack into our own
           self.stack.concat(middleware.stack)
         else
@@ -75,9 +69,9 @@ module Vagrant
         insert(index + 1, middleware, *args, &block)
       end
 
-      # Swaps out the given middlware object or index with the new
+      # Replaces the given middlware object or index with the new
       # middleware.
-      def swap(index, middleware, *args, &block)
+      def replace(index, middleware, *args, &block)
         if index.is_a?(Integer)
           delete(index)
           insert(index, middleware, *args, &block)
@@ -93,6 +87,13 @@ module Vagrant
         stack.delete_at(index)
       end
 
+      # Runs the builder stack with the given environment.
+      def call(env)
+        to_app(env).call(env)
+      end
+
+      protected
+
       # Returns the numeric index for the given middleware object.
       #
       # @param [Object] object The item to find the index for
@@ -105,6 +106,14 @@ module Vagrant
         nil
       end
 
+      # Returns the current stack of middlewares. You probably won't
+      # need to use this directly, and it's recommended that you don't.
+      #
+      # @return [Array]
+      def stack
+        @stack ||= []
+      end
+
       # Converts the builder stack to a runnable action sequence.
       #
       # @param [Vagrant::Action::Environment] env The action environment
@@ -113,11 +122,6 @@ module Vagrant
         # Wrap the middleware stack with the Warden to provide a consistent
         # and predictable behavior upon exceptions.
         Warden.new(stack.dup, env)
-      end
-
-      # Runs the builder stack with the given environment.
-      def call(env)
-        to_app(env).call(env)
       end
     end
   end

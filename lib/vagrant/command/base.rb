@@ -59,7 +59,9 @@ module Vagrant
       # specific VM name is specified.
       #
       # @param [String] name The name of the VM. Nil if every VM.
-      def with_target_vms(name=nil)
+      # @param [Boolean] single_target If true, then an exception will be
+      #   raised if more than one target is found.
+      def with_target_vms(name=nil, single_target=false)
         # Using VMs requires a Vagrant environment to be properly setup
         raise Errors::NoEnvironmentError if !@env.root_path
 
@@ -67,11 +69,28 @@ module Vagrant
         vms = []
         if name
           raise Errors::MultiVMEnvironmentRequired if !@env.multivm?
-          vms << @env.vms[name.to_sym]
-          raise Errors::VMNotFoundError, :name => name if !vms[0]
+
+          if name =~ /^\/(.+?)\/$/
+            # This is a regular expression name, so we convert to a regular
+            # expression and allow that sort of matching.
+            regex = Regexp.new($1.to_s)
+
+            @env.vms.each do |name, vm|
+              vms << vm if name =~ regex
+            end
+
+            raise Errors::VMNoMatchError if vms.empty?
+          else
+            # String name, just look for a specific VM
+            vms << @env.vms[name.to_sym]
+            raise Errors::VMNotFoundError, :name => name if !vms[0]
+          end
         else
           vms = @env.vms_ordered
         end
+
+        # Make sure we're only working with one VM if single target
+        raise Errors::MultiVMTargetRequired if single_target && vms.length != 1
 
         # Go through each VM and yield it!
         vms.each do |old_vm|

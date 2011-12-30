@@ -1,3 +1,7 @@
+require 'pathname'
+
+require 'log4r'
+
 module Vagrant
   # The Vagrant data store is a key-value store which is persisted
   # as JSON in a local file which is specified in the initializer.
@@ -16,19 +20,19 @@ module Vagrant
     attr_reader :file_path
 
     def initialize(file_path)
-      @file_path = file_path
-      return if !file_path
+      @logger    = Log4r::Logger.new("vagrant::datastore")
+      @logger.info("Created: #{file_path}")
 
-      raise Errors::DotfileIsDirectory if File.directory?(file_path)
+      @file_path = Pathname.new(file_path)
 
-      if File.exist?(file_path)
-        File.open(file_path, "r") do |f|
-          begin
-            merge!(JSON.parse(f.read))
-          rescue JSON::ParserError
-            # Ignore if the data is invalid in the file.
-            # TODO: Log here.
-          end
+      if @file_path.exist?
+        raise Errors::DotfileIsDirectory if @file_path.directory?
+
+        begin
+          merge!(JSON.parse(@file_path.read))
+        rescue JSON::ParserError
+          # Ignore if the data is invalid in the file.
+          @logger.error("Data store contained invalid JSON. Ignoring.")
         end
       end
     end
@@ -36,15 +40,19 @@ module Vagrant
     # Commits any changes to the data to disk. Even if the data
     # hasn't changed, it will be reserialized and written to disk.
     def commit
-      return if !file_path
-
       clean_nil_and_empties
 
       if empty?
         # Delete the file since an empty data store is not useful
-        File.delete(file_path) if File.file?(file_path)
+        @logger.info("Deleting data store since we're empty: #{@file_path}")
+        @file_path.delete if @file_path.exist?
       else
-        File.open(file_path, "w") { |f| f.write(to_json) }
+        @logger.info("Committing data to data store: #{@file_path}")
+
+        @file_path.open("w") do |f|
+          f.write(to_json)
+          f.fsync
+        end
       end
     end
 
