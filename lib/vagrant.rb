@@ -113,6 +113,7 @@ Vagrant.commands.register(:up)           { Vagrant::Command::Up }
 # Register the built-in config keys
 Vagrant.config_keys.register(:vagrant) { Vagrant::Config::VagrantConfig }
 Vagrant.config_keys.register(:ssh)     { Vagrant::Config::SSHConfig }
+Vagrant.config_keys.register(:winrm)   { Vagrant::Config::WINRMConfig }
 Vagrant.config_keys.register(:nfs)     { Vagrant::Config::NFSConfig }
 Vagrant.config_keys.register(:vm)      { Vagrant::Config::VMConfig }
 Vagrant.config_keys.register(:package) { Vagrant::Config::PackageConfig }
