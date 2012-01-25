@@ -27,9 +27,10 @@ module Vagrant
       end
 
       def verify_binary(binary)
-        vm.ssh.execute do |ssh|
-          ssh.sudo!("which #{binary}", :error_class => PuppetServerError, :_key => :puppetd_not_detected, :binary => binary)
-        end
+        env[:vm].channel.sudo("which #{binary}",
+                              :error_class => PuppetServerError,
+                              :error_key => :puppetd_not_detected,
+                              :binary => binary)
       end
 
       def run_puppetd_client
@@ -38,18 +39,19 @@ module Vagrant
         if config.puppet_node
           cn = config.puppet_node
         else
-          cn = env.config.vm.box
+          cn = env[:vm].config.vm.box
         end
 
-        commands = "puppetd #{options} --server #{config.puppet_server} --certname #{cn}"
+        command = "puppetd #{options} --server #{config.puppet_server} --certname #{cn}"
 
-        env.ui.info I18n.t("vagrant.provisioners.puppet_server.running_puppetd")
+        env[:ui].info I18n.t("vagrant.provisioners.puppet_server.running_puppetd")
+        env[:vm].channel.sudo(command) do |type, data|
+          # Output the data with the proper color based on the stream.
+          color = type == :stdout ? :green : :red
 
-        vm.ssh.execute do |ssh|
-          ssh.sudo!(commands) do |channel, type, data|
-            ssh.check_exit_status(data, commands) if type == :exit_status
-            env.ui.info(data) if type != :exit_status
-          end
+          # Note: Be sure to chomp the data to avoid the newlines that the
+          # Chef outputs.
+          env[:ui].info(data.chomp, :color => color, :prefix => false)
         end
       end
     end

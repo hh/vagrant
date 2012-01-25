@@ -24,10 +24,7 @@ module Vagrant
       end
 
       def halt
-        vm.ui.info I18n.t("vagrant.guest.freebsd.attempting_halt")
-        vm.ssh.execute do |ssh|
-          ssh.exec!("sudo shutdown -p now")
-        end
+        vm.channel.sudo("shutdown -p now")
 
         # Wait until the VM's state is actually powered off. If this doesn't
         # occur within a reasonable amount of time (15 seconds by default),
@@ -51,10 +48,8 @@ module Vagrant
 
       def mount_nfs(ip, folders)
         folders.each do |name, opts|
-          vm.ssh.execute do |ssh|
-            ssh.exec!("sudo mkdir -p #{opts[:guestpath]}")
-            ssh.exec!("sudo mount #{ip}:#{opts[:hostpath]} #{opts[:guestpath]}")
-          end
+          vm.channel.sudo("mkdir -p #{opts[:guestpath]}")
+          vm.channel.sudo("mount #{ip}:#{opts[:hostpath]} #{opts[:guestpath]}")
         end
       end
 
@@ -63,13 +58,13 @@ module Vagrant
         # interface file.
         vm.ssh.execute do |ssh|
           # Clear out any previous entries
-          ssh.exec!("sudo sed -e '/^#VAGRANT-BEGIN/,/^#VAGRANT-END/ d' /etc/rc.conf > /tmp/rc.conf")
+          ssh.exec!("sudo sed -e '/^#VAGRANT-BEGIN-HOSTONLY/,/^#VAGRANT-END-HOSTONLY/ d' /etc/rc.conf > /tmp/rc.conf")
           ssh.exec!("sudo mv /tmp/rc.conf /etc/rc.conf")
         end
       end
 
       def enable_host_only_network(net_options)
-        entry = "#VAGRANT-BEGIN\nifconfig_em#{net_options[:adapter]}=\"inet #{net_options[:ip]} netmask #{net_options[:netmask]}\"\n#VAGRANT-END\n"
+        entry = "#VAGRANT-BEGIN-HOSTONLY\nifconfig_em#{net_options[:adapter]}=\"inet #{net_options[:ip]} netmask #{net_options[:netmask]}\"\n#VAGRANT-END-HOSTONLY\n"
         vm.ssh.upload!(StringIO.new(entry), "/tmp/vagrant-network-entry")
 
         vm.ssh.execute do |ssh|

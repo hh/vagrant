@@ -2,27 +2,39 @@ module Vagrant
   module Config
     class SSHConfig < Base
       attr_accessor :username
+      attr_accessor :password
       attr_accessor :host
-      attr_accessor :forwarded_port_key
-      attr_accessor :forwarded_port_destination
+      attr_accessor :port
+      attr_accessor :guest_port
       attr_accessor :max_tries
       attr_accessor :timeout
       attr_accessor :private_key_path
       attr_accessor :forward_agent
       attr_accessor :forward_x11
       attr_accessor :shell
-      attr_accessor :port
 
-      def initialize
-        @shell = "bash"
-        @port = nil
-        @forward_agent = false
-        @forward_x11 = false
-        @private_key_path = nil
+      def forwarded_port_key=(value)
+        raise Errors::DeprecationError, :message => <<-MESSAGE
+`config.ssh.forwarded_port_key` is now gone. You must now use
+`config.ssh.guest_port` which is expected to be the port on the
+guest that SSH is listening on. Vagrant will automatically scan
+the forwarded ports to look for a forwarded port from this port
+and use it.
+        MESSAGE
+      end
+
+      def forwarded_port_destination=(value)
+        raise Errors::DeprecationError, :message => <<-MESSAGE
+`config.ssh.forwarded_port_destination` is now gone. You must now use
+`config.ssh.guest_port` which is expected to be the port on the
+guest that SSH is listening on. Vagrant will automatically scan
+the forwarded ports to look for a forwarded port from this port
+and use it.
+        MESSAGE
       end
 
       def validate(env, errors)
-        [:username, :host, :forwarded_port_key, :max_tries, :timeout].each do |field|
+        [:username, :host, :max_tries, :timeout].each do |field|
           errors.add(I18n.t("vagrant.config.common.error_empty", :field => field)) if !instance_variable_get("@#{field}".to_sym)
         end
 

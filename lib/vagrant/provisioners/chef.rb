@@ -1,3 +1,5 @@
+require 'tempfile'
+
 module Vagrant
   module Provisioners
     # This class is a base class where the common functionality shared between
@@ -17,12 +19,12 @@ module Vagrant
       end
 
       def verify_binary(binary)
-        env[:vm].ssh.execute do |ssh|
-          # Checks for the existence of chef binary and error if it
-          # doesn't exist.
-          ssh.sudo!("which #{binary}", :error_class => ChefError,
-                    :_key => :chef_not_detected, :binary => binary)
-        end
+        # Checks for the existence of chef binary and error if it
+        # doesn't exist.
+        env[:vm].channel.sudo("which #{binary}",
+                              :error_class => ChefError,
+                              :error_key => :chef_not_detected,
+                              :binary => binary)
       end
 
       # Returns the path to the Chef binary, taking into account the
@@ -33,10 +35,8 @@ module Vagrant
       end
 
       def chown_provisioning_folder
-        env[:vm].ssh.execute do |ssh|
-          ssh.sudo!("mkdir -p #{config.provisioning_path}")
-          ssh.sudo!("chown #{env[:vm].config.ssh.username} #{config.provisioning_path}")
-        end
+        env[:vm].channel.sudo("mkdir -p #{config.provisioning_path}")
+        env[:vm].channel.sudo("chown #{env[:vm].config.ssh.username} #{config.provisioning_path}")
       end
 
       def setup_config(template, filename, template_vars)
@@ -51,8 +51,13 @@ module Vagrant
           :no_proxy => config.no_proxy
         }.merge(template_vars))
 
-        env[:vm].ssh.upload!(StringIO.new(config_file),
-                             File.join(config.provisioning_path, filename))
+        # Create a temporary file to store the data so we
+        # can upload it
+        temp = Tempfile.new("vagrant")
+        temp.write(config_file)
+        temp.close
+
+        env[:vm].channel.upload(temp.path, File.join(config.provisioning_path, filename))
       end
 
       def setup_json
@@ -74,7 +79,13 @@ module Vagrant
 
         json = data.to_json
 
-        env[:vm].ssh.upload!(StringIO.new(json), File.join(config.provisioning_path, "dna.json"))
+        # Create a temporary file to store the data so we
+        # can upload it
+        temp = Tempfile.new("vagrant")
+        temp.write(json)
+        temp.close
+
+        env[:vm].channel.upload(temp.path, File.join(config.provisioning_path, "dna.json"))
       end
     end
 
@@ -101,23 +112,14 @@ module Vagrant
         attr_accessor :no_proxy
         attr_accessor :binary_path
         attr_accessor :binary_env
+        attr_accessor :attempts
         attr_writer :run_list
 
-        def initialize
-          @provisioning_path = nil
-          @log_level = :info
-          @json = {}
-          @http_proxy = nil
-          @http_proxy_user = nil
-          @http_proxy_pass = nil
-          @https_proxy = nil
-          @https_proxy_user = nil
-          @https_proxy_pass = nil
-          @no_proxy = nil
-          @binary_path = nil
-          @binary_env = nil
-          @run_list = nil
-        end
+        # Provide defaults in such a way that they won't override the instance
+        # variable. This is so merging continues to work properly.
+        def attempts; @attempts || 1; end
+        def json; @json ||= {}; end
+        def log_level; @log_level || :info; end
 
         # This returns the json that is merged with the defaults and the
         # user set data.
@@ -143,6 +145,12 @@ module Vagrant
         def add_role(name)
           name = "role[#{name}]" unless name =~ /^role\[(.+?)\]$/
           run_list << name
+        end
+
+        def validate(env, errors)
+          super
+
+          errors.add(I18n.t("vagrant.config.chef.vagrant_as_json_key")) if json.has_key?(:vagrant)
         end
 
         def instance_variables_hash

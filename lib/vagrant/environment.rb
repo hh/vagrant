@@ -4,6 +4,7 @@ require 'fileutils'
 require 'log4r'
 
 require 'vagrant/util/file_mode'
+require 'vagrant/util/platform'
 
 module Vagrant
   # Represents a single Vagrant environment. A "Vagrant environment" is
@@ -168,6 +169,10 @@ module Vagrant
       host_klass = config.global.vagrant.host
       host_klass = Hosts.detect(Vagrant.hosts) if host_klass.nil? || host_klass == :detect
       host_klass = Vagrant.hosts.get(host_klass) if host_klass.is_a?(Symbol)
+
+      # If no host class is detected, we use the base class.
+      host_klass ||= Hosts::Base
+
       @host ||= host_klass.new(@ui)
     end
 
@@ -346,24 +351,22 @@ module Vagrant
         # with Vagrant.
         config_loader.set(:default, File.expand_path("config/default.rb", Vagrant.source_root))
 
-        vagrantfile_name.each do |rootfile|
-          if box
-            # We load the box Vagrantfile
-            box_vagrantfile = box.directory.join(rootfile)
-            config_loader.set(:box, box_vagrantfile) if box_vagrantfile.exist?
-          end
+        if box
+          # We load the box Vagrantfile
+          box_vagrantfile = find_vagrantfile(box.directory)
+          config_loader.set(:box, box_vagrantfile) if box_vagrantfile
+        end
 
-          if home_path
-            # Load the home Vagrantfile
-            home_vagrantfile = home_path.join(rootfile)
-            config_loader.set(:home, home_vagrantfile) if home_vagrantfile.exist?
-          end
+        if home_path
+          # Load the home Vagrantfile
+          home_vagrantfile = find_vagrantfile(home_path)
+          config_loader.set(:home, home_vagrantfile) if home_vagrantfile
+        end
 
-          if root_path
-            # Load the Vagrantfile in this directory
-            root_vagrantfile = root_path.join(rootfile)
-            config_loader.set(:root, root_vagrantfile) if root_vagrantfile.exist?
-          end
+        if root_path
+          # Load the Vagrantfile in this directory
+          root_vagrantfile = find_vagrantfile(root_path)
+          config_loader.set(:root, root_vagrantfile) if root_vagrantfile
         end
 
         if subvm
@@ -468,10 +471,27 @@ module Vagrant
                      @default_private_key_path)
       end
 
-      if Util::FileMode.from_octal(@default_private_key_path.stat.mode) != "600"
-        @logger.info("Changing permissions on private key to 0600")
-        @default_private_key_path.chmod(0600)
+      if !Util::Platform.windows?
+        # On Windows, permissions don't matter as much, so don't worry
+        # about doing chmod.
+        if Util::FileMode.from_octal(@default_private_key_path.stat.mode) != "600"
+          @logger.info("Changing permissions on private key to 0600")
+          @default_private_key_path.chmod(0600)
+        end
       end
+    end
+
+    # Finds the Vagrantfile in the given directory.
+    #
+    # @param [Pathname] path Path to search in.
+    # @return [Pathname]
+    def find_vagrantfile(search_path)
+      @vagrantfile_name.each do |vagrantfile|
+        current_path = search_path.join(vagrantfile)
+        return current_path if current_path.exist?
+      end
+
+      nil
     end
   end
 end

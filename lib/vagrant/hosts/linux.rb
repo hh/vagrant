@@ -1,3 +1,5 @@
+require 'log4r'
+
 require 'vagrant/util/platform'
 
 module Vagrant
@@ -20,6 +22,7 @@ module Vagrant
       def initialize(*args)
         super
 
+        @logger = Log4r::Logger.new("vagrant::hosts::linux")
         @nfs_server_binary = "/etc/init.d/nfs-kernel-server"
       end
 
@@ -36,8 +39,10 @@ module Vagrant
                                          :ip => ip,
                                          :folders => folders)
 
-        @ui.info I18n.t("vagrant.hosts.linux.nfs_export.prepare")
+        @ui.info I18n.t("vagrant.hosts.linux.nfs_export")
         sleep 0.5
+
+        nfs_cleanup(id)
 
         output.split("\n").each do |line|
           # This should only ask for administrative permission once, even
@@ -50,15 +55,39 @@ module Vagrant
         system("sudo #{@nfs_server_binary} restart")
       end
 
+      def nfs_prune(valid_ids)
+        return if !File.exist?("/etc/exports")
+
+        @logger.info("Pruning invalid NFS entries...")
+
+        output = false
+
+        File.read("/etc/exports").lines.each do |line|
+          if line =~ /^# VAGRANT-BEGIN: (.+?)$/
+            if valid_ids.include?($1.to_s)
+              @logger.debug("Valid ID: #{$1.to_s}")
+            else
+              if !output
+                # We want to warn the user but we only want to output once
+                @ui.info I18n.t("vagrant.hosts.linux.nfs_prune")
+                output = true
+              end
+
+              @logger.info("Invalid ID, pruning: #{$1.to_s}")
+              nfs_cleanup($1.to_s)
+            end
+          end
+        end
+      end
+
+      protected
+
       def nfs_cleanup(id)
         return if !File.exist?("/etc/exports")
-        system("cat /etc/exports | grep 'VAGRANT-BEGIN: #{id}' > /dev/null 2>&1")
 
-        if $?.to_i == 0
-          # Use sed to just strip out the block of code which was inserted
-          # by Vagrant
-          system("sudo sed -e '/^# VAGRANT-BEGIN: #{id}/,/^# VAGRANT-END: #{id}/ d' -ibak /etc/exports")
-        end
+        # Use sed to just strip out the block of code which was inserted
+        # by Vagrant
+        system("sudo sed -e '/^# VAGRANT-BEGIN: #{id}/,/^# VAGRANT-END: #{id}/ d' -ibak /etc/exports")
       end
     end
   end

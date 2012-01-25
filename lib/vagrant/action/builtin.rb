@@ -25,10 +25,12 @@ module Vagrant
           use VM::CheckPortCollisions, :port_collision_handler => :correct
           use VM::ForwardPorts
           use VM::Provision
+          use VM::PruneNFSExports
           use VM::NFS
           use VM::ClearSharedFolders
           use VM::ShareFolders
           use VM::HostName
+          use VM::ClearNetworkInterfaces
           use VM::Network
           use VM::Customize
           use VM::Boot
@@ -95,7 +97,7 @@ module Vagrant
           use VM::CheckAccessible
           use registry.get(:halt), :force => true
           use VM::ProvisionerCleanup
-          use VM::ClearNFSExports
+          use VM::PruneNFSExports
           use VM::Destroy
           use VM::CleanMachineFolder
           use VM::DestroyUnusedNetworkInterfaces

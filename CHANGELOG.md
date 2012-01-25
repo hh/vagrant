@@ -1,18 +1,103 @@
-## 0.9.0 (unreleased)
+## 0.9.4 (unreleased)
 
+  - Match VM names that have parens, brackets, etc.
+  - Detect when the VirtualBox kernel module is not loaded and error. [GH-677]
+  - Set `:auto_config` to false on any networking option to not automatically
+    configure it on the guest. [GH-663]
+  - NFS shared folder guest paths can now contain shell expansion characters
+    such as `~`.
+  - NFS shared folders with a `:create` flag will have their host folders
+    properly created if they don't exist. [GH-667]
+  - Fix the precedence for Arch, Ubuntu, and FreeBSD host classes so
+    they are properly detected. [GH-683]
+
+## 0.9.3 (January 24, 2012)
+
+  - Proper error handling for not enough arguments to `box` commands.
+  - Fix issue causing crashes with bridged networking. [GH-673]
+  - Ignore host only network interfaces that are "down." [GH-675]
+  - Use "printf" instead of "echo" to determine shell expanded files paths
+    which is more generally POSIX compliant. [GH-676]
+
+## 0.9.2 (January 20, 2012)
+
+  - Support shell expansions in shared folder guest paths again. [GH-656]
+  - Fix issue where Chef solo always expected the host to have a
+    "cookbooks" folder in their directory. [GH-638]
+  - Fix `forward_agent` not working when outside of blocks. [GH-651]
+  - Fix issue causing custom guest implementations to not load properly.
+  - Filter clear screen character out of output on SSH.
+  - Log output now goes on `stderr`, since it is utility information.
+  - Get rid of case where a `NoMethodError` could be raised while
+    determining VirtualBox version. [GH-658]
+  - Debian/Ubuntu uses `ifdown` again, instead of `ifconfig xxx down`, since
+    the behavior seems different/wrong.
+  - Give a nice error if `:vagrant` is used as a JSON key, since Vagrant
+    uses this. [GH-661]
+  - If there is only one bridgable interface, use that without asking
+    the user. [GH-655]
+  - The shell will have color output if ANSICON is installed on Windows. [GH-666]
+
+## 0.9.1 (January 18, 2012)
+
+  - Use `ifconfig device down` instead of `ifdown`. [GH-649]
+  - Clearer invalid log level error. [GH-645]
+  - Fix exception raised with NFS `recover` method.
+  - Fix `ui` `NoMethodError` exception in puppet server.
+  - Fix `vagrant box help` on Ruby 1.8.7. [GH-647]
+
+## 0.9.0 (January 17, 2012)
+
+  - VirtualBox 4.0 support backported in addition to supporting VirtualBox 4.1.
+  - `config.vm.network` syntax changed so that the first argument is now the type
+    of argument. Previously where you had `config.vm.network "33.33.33.10"` you
+    should now put `config.vm.network :hostonly, "33.33.33.10"`. This is in order
+    to support bridged networking, as well.
+  - `config.vm.forward_port` no longer requires a name parameter.
+  - Bridged networking. `config.vm.network` with `:bridged` as the option will
+    setup a bridged network.
+  - Host only networks can be configured with DHCP now. Specify `:dhcp` as
+    the IP and it will be done.
   - `config.vm.customize` now takes a command to send to `VBoxManage`, so any
     arbitrary command can be sent. The older style of passing a block no longer
     works and Vagrant will give a proper error message if it notices this old-style
     being used.
+  - `config.ssh.forwarded_port_key` is gone. Vagrant no longer cares about
+    forwarded port names for any reason. Please use `config.ssh.guest_port`
+    (more below).
+  - `config.ssh.forwarded_port_destination` has been replaced by
+    `config.ssh.guest_port` which more accurately reflects what it is
+    used for. Vagrant will automatically scan forwarded ports that match the
+    guest port to find the SSH port.
   - Logging. The entire Vagrant source has had logging sprinkled throughout
     to make debugging issues easier. To enable logging, set the VAGRANT_LOG
     environmental variable to the log level you wish to see. By default,
     logging is silent.
   - `system` renamed to `guest` throughout the source. Any `config.vm.system`
     configurations must be changed to `config.vm.guest`
+  - Puppet provisioner no longer defaults manifest to "box.pp." Instead, it
+    is now "default.pp"
   - All Vagrant commands that take a VM name in a Multi-VM environment
     can now be given a regular expression. If the name starts and ends with a "/"
     then it is assumed to be a regular expression. [GH-573]
+  - Added a "--plain" flag to `vagrant ssh` which will cause Vagrant to not
+    perform any authentication. It will simply `ssh` into the proper IP and
+    port of the virtual machine.
+  - If a shared folder now has a `:create` flag set to `true`, the path on the
+    host will be created if it doesn't exist.
+  - Added `--force` flag to `box add`, which will overwite any existing boxes
+    if they exist. [GH-631]
+  - Added `--provision-with` to `up` which configures what provisioners run,
+    by shortcut. [GH-367]
+  - Arbitrary mount options can be passed with `:extra` to any shared
+    folders. [GH-551]
+  - Options passed after a `--` to `vagrant ssh` are now passed directly to
+    `ssh`. [GH-554]
+  - Ubuntu guests will now emit a `vagrant-mounted` upstart event after shared
+    folders are mounted.
+  - `attempts` is a new option on chef client and chef solo provisioners. This
+    will run the provisioner multiple times until erroring about failing
+    convergence. [GH-282]
   - Removed Thor as a dependency for the command line interfaces. This resulted
     in general speed increases across all command line commands.
   - Linux uses `shutdown -h` instead of `halt` to hopefully more consistently
@@ -24,6 +109,8 @@
     `sudo` installed Vagrant installations work. [GH-580]
   - Provisioner stdout/stderr is now color coded based on stdout/stderr.
     stdout is green, stderr is red. [GH-595]
+  - Chef solo now prompts users to run a `reload` if shared folders
+    are not found on the VM. [GH-253]
   - "--no-provision" once again works for certain commands. [GH-591]
   - Resuming a VM from a saved state will show an error message if there
     would be port collisions. [GH-602]
@@ -31,7 +118,10 @@
     run. [GH-598]
   - `vagrant ssh -c` will now send stderr to stderr and stdout to stdout
     on the host machine, instead of all output to stdout.
+  - `vagrant box add` path now accepts unexpanded shell paths such as
+    `~/foo` and will properly expand them. [GH-633]
   - Vagrant can now be interrupted during the "importing" step.
+  - NFS exports will no longer be cleared when an expected error occurs. [GH-577]
 
 ## 0.8.10 (December 10, 2011)
 

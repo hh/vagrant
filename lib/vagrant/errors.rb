@@ -128,9 +128,14 @@ module Vagrant
       error_key(:failed, "vagrant.actions.box.verify")
     end
 
-    class CLIMissingEnvironment < VagrantError
+    class CLIInvalidUsage < VagrantError
+      status_code(69)
+      error_key(:cli_invalid_usage)
+    end
+
+    class CLIInvalidOptions < VagrantError
       status_code(1)
-      error_key(:cli_missing_env)
+      error_key(:cli_invalid_options)
     end
 
     class ConfigValidationFailed < VagrantError
@@ -203,14 +208,29 @@ module Vagrant
       error_key(:multi_vm_target_required)
     end
 
+    class NetworkAdapterCollision < VagrantError
+      status_code(65)
+      error_key(:adapter_collision, "vagrant.actions.vm.network")
+    end
+
     class NetworkCollision < VagrantError
       status_code(29)
-      error_key(:collides, "vagrant.actions.vm.network")
+      error_key(:collides, "vagrant.actions.vm.host_only_network")
+    end
+
+    class NetworkNoAdapters < VagrantError
+      status_code(64)
+      error_key(:no_adapters, "vagrant.actions.vm.network")
+    end
+
+    class NetworkDHCPAlreadyAttached < VagrantError
+      status_code(68)
+      error_key(:dhcp_already_attached, "vagrant.actions.vm.network")
     end
 
     class NetworkNotFound < VagrantError
       status_code(30)
-      error_key(:not_found, "vagrant.actions.vm.network")
+      error_key(:not_found, "vagrant.actions.vm.host_only_network")
     end
 
     class NFSHostRequired < VagrantError
@@ -256,6 +276,11 @@ module Vagrant
     class SCPUnavailable < VagrantError
       status_code(56)
       error_key(:scp_unavailable)
+    end
+
+    class SharedFolderCreateFailed < VagrantError
+      status_code(66)
+      error_key(:shared_folder_create_failed)
     end
 
     class SSHAuthenticationFailed < VagrantError
@@ -316,6 +341,11 @@ module Vagrant
     class VirtualBoxNotDetected < VagrantError
       status_code(8)
       error_key(:virtualbox_not_detected)
+    end
+
+    class VirtualBoxKernelModuleNotLoaded < VagrantError
+      status_code(70)
+      error_key(:virtualbox_kernel_module_not_loaded)
     end
 
     class VMBaseMacNotSpecified < VagrantError

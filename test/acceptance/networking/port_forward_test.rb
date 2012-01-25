@@ -1,15 +1,14 @@
-require File.expand_path("../base", __FILE__)
+require File.expand_path("../../base", __FILE__)
 
 require "net/http"
 require "uri"
 
-require "vagrant/util/retryable"
-
+require "acceptance/support/network_tests"
 require "acceptance/support/shared/command_examples"
 require "support/tempdir"
 
 describe "vagrant port forwarding" do
-  include Vagrant::Util::Retryable
+  include Acceptance::NetworkTests
 
   include_context "acceptance"
 
@@ -30,31 +29,33 @@ describe "vagrant port forwarding" do
       f.puts(<<VFILE)
 Vagrant::Config.run do |config|
   config.vm.box = "base"
-  config.vm.forward_port "foo", #{guest_port}, #{host_port}
+  config.vm.forward_port #{guest_port}, #{host_port}
 end
 VFILE
     end
 
     assert_execute("vagrant", "up")
+    assert_host_to_vm_network("http://localhost:#{host_port}/", guest_port)
+  end
 
-    thr = nil
-    begin
-      # Start up a web server in another thread by SSHing into the VM.
-      thr = Thread.new do
-        assert_execute("vagrant", "ssh", "-c", "python -m SimpleHTTPServer #{guest_port}")
-      end
+  it "properly overrides port forwarding from the same port" do
+    initialize_environment
 
-      # Verify that port forwarding works by making a simple HTTP request
-      # to the port. We should get a 200 response. We retry this a few times
-      # as we wait for the HTTP server to come online.
-      retryable(:tries => 5, :sleep => 2) do
-        result = Net::HTTP.get_response(URI.parse("http://localhost:#{host_port}/"))
-        result.code.should == "200"
-      end
-    ensure
-      # The server needs to die. This is how.
-      thr.kill if thr
+    guest_port = 3000
+    host_port  = 5000
+
+    environment.workdir.join("Vagrantfile").open("w+") do |f|
+      f.puts(<<VFILE)
+Vagrant::Config.run do |config|
+  config.vm.box = "base"
+  config.vm.forward_port #{guest_port}, #{host_port - 1}
+  config.vm.forward_port #{guest_port}, #{host_port}
+end
+VFILE
     end
+
+    assert_execute("vagrant", "up")
+    assert_host_to_vm_network("http://localhost:#{host_port}/", guest_port)
   end
 
   it "detects and corrects port collisions" do

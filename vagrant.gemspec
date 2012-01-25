@@ -15,11 +15,11 @@ Gem::Specification.new do |s|
   s.rubyforge_project         = "vagrant"
 
   s.add_dependency "archive-tar-minitar", "= 0.5.2"
-  s.add_dependency "childprocess", "~> 0.2.4"
+  s.add_dependency "childprocess", "~> 0.3.0"
   s.add_dependency "erubis", "~> 2.7.0"
   s.add_dependency "json", "~> 1.5.1"
   s.add_dependency "log4r", "~> 1.1.9"
-  s.add_dependency "net-ssh", "~> 2.1.4"
+  s.add_dependency "net-ssh", "~> 2.2.2"
   s.add_dependency "net-scp", "~> 1.0.4"
   s.add_dependency "i18n", "~> 0.6.0"
 
@@ -28,9 +28,9 @@ Gem::Specification.new do |s|
   s.add_development_dependency "minitest", "~> 2.5.1"
   s.add_development_dependency "mocha"
   #s.add_development_dependency "sys-proctable", "~> 0.9.0"
-  s.add_development_dependency "rspec-core", "~> 2.7.1"
-  s.add_development_dependency "rspec-expectations", "~> 2.7.0"
-  s.add_development_dependency "rspec-mocks", "~> 2.7.0"
+  s.add_development_dependency "rspec-core", "~> 2.8.0"
+  s.add_development_dependency "rspec-expectations", "~> 2.8.0"
+  s.add_development_dependency "rspec-mocks", "~> 2.8.0"
 
   s.files         = `git ls-files`.split("\n")
   s.executables   = `git ls-files`.split("\n").map{|f| f =~ /^bin\/(.*)/ ? $1 : nil}.compact

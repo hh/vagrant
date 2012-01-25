@@ -12,7 +12,7 @@ module Vagrant
     attr_reader :config
     attr_reader :driver
 
-    def initialize(name, env, config)
+    def initialize(name, env, config, opts=nil)
       @logger = Log4r::Logger.new("vagrant::vm")
 
       @name   = name
@@ -21,9 +21,15 @@ module Vagrant
       @config = config
       @box    = env.boxes.find(config.vm.box)
 
-      # Load the UUID if its saved.
-      active = env.local_data[:active] || {}
-      @uuid = active[@name.to_s]
+      opts ||= {}
+      if opts[:base]
+        # The name is the ID we use.
+        @uuid = name
+      else
+        # Load the UUID if its saved.
+        active = env.local_data[:active] || {}
+        @uuid = active[@name.to_s]
+      end
 
       # Reload ourselves to get the state
       reload!
@@ -43,7 +49,7 @@ module Vagrant
       @logger.info("Loading guest: #{guest}")
 
       if guest.is_a?(Class)
-        raise Errors::VMGuestError, :_key => :invalid_class, :system => guest.to_s if !(guest <= Systems::Base)
+        raise Errors::VMGuestError, :_key => :invalid_class, :system => guest.to_s if !(guest <= Guest::Base)
         @guest = guest.new(self)
       elsif guest.is_a?(Symbol)
         guest_klass = Vagrant.guests.get(guest)
@@ -52,6 +58,12 @@ module Vagrant
       else
         raise Errors::VMGuestError, :unspecified
       end
+    end
+
+    # Returns a channel object to communicate with the virtual
+    # machine.
+    def channel
+      @channel ||= Communication::SSH.new(self)
     end
 
     # Returns the guest for this VM, loading the distro of the system if
@@ -67,9 +79,8 @@ module Vagrant
       @guest
     end
 
-    # Access the {Vagrant::SSH} object associated with this VM.
-    # On the initial call, this will initialize the object. On
-    # subsequent calls it will reuse the existing object.
+    # Access the {Vagrant::SSH} object associated with this VM, which
+    # is used to get SSH credentials with the virtual machine.
     def ssh
       @ssh ||= SSH.new(self)
     end

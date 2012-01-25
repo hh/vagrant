@@ -47,38 +47,50 @@ module Vagrant
       #
       # If when this method returns, the machine's state isn't "powered_off,"
       # Vagrant will proceed to forcefully shut the machine down.
-      def halt; end
+      def halt
+        raise BaseError, :_key => :unsupported_halt
+      end
 
-      # Mounts a shared folder. This method is called by the shared
-      # folder action with an open SSH session (passed in as `ssh`).
+      # Mounts a shared folder.
+      #
       # This method should create, mount, and properly set permissions
       # on the shared folder. This method should also properly
       # adhere to any configuration values such as `shared_folder_uid`
       # on `config.vm`.
       #
-      # @param [Object] ssh The Net::SSH session.
       # @param [String] name The name of the shared folder.
       # @param [String] guestpath The path on the machine which the user
       #   wants the folder mounted.
-      def mount_shared_folder(ssh, name, guestpath, owner, group); end
+      # @param [Hash] options Additional options for the shared folder
+      #   which can be honored.
+      def mount_shared_folder(name, guestpath, options)
+        raise BaseError, :_key => :unsupported_shared_folder
+      end
 
       # Mounts a shared folder via NFS. This assumes that the exports
       # via the host are already done.
-      def mount_nfs(ip, folders); end
-
-      # Prepares the system for host only networks. This is called
-      # once prior to any `enable_host_only_network` calls.
-      def prepare_host_only_network(net_options=nil)
-        raise BaseError, :_key => :unsupported_host_only
+      def mount_nfs(ip, folders)
+        raise BaseError, :_key => :unsupported_nfs
       end
 
-      # Setup the system by adding a new host only network. This
-      # method should configure and bring up the interface for the
-      # given options.
+      # Configures the given list of networks on the virtual machine.
       #
-      # @param [Hash] net_options The options for the network.
-      def enable_host_only_network(net_options); end
+      # The networks parameter will be an array of hashes where the hashes
+      # represent the configuration of a network interface. The structure
+      # of the hash will be roughly the following:
+      #
+      # {
+      #   :type      => :static,
+      #   :ip        => "33.33.33.10",
+      #   :netmask   => "255.255.255.0",
+      #   :interface => 1
+      # }
+      #
+      def configure_networks(networks)
+        raise BaseError, :_key => :unsupported_configure_networks
+      end
 
+      # Called to change the hostname of the virtual machine.
       def change_host_name(name)
         raise BaseError, :_key => :unsupported_host_name
       end

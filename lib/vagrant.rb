@@ -1,12 +1,44 @@
 # Enable logging if it is requested. We do this before
 # anything else so that we can setup the output before
 # any logging occurs.
-if ENV["VAGRANT_LOG"]
+if ENV["VAGRANT_LOG"] && ENV["VAGRANT_LOG"] != ""
+  # Require Log4r and define the levels we'll be using
   require 'log4r'
-  logger = Log4r::Logger.new("vagrant")
-  logger.outputters = Log4r::Outputter.stdout
-  logger.level = Log4r.const_get(ENV["VAGRANT_LOG"].upcase)
-  logger = nil
+  require 'log4r/config'
+  Log4r.define_levels(*Log4r::Log4rConfig::LogLevels)
+
+  level = nil
+  begin
+    level = Log4r.const_get(ENV["VAGRANT_LOG"].upcase)
+  rescue NameError
+    # This means that the logging constant wasn't found,
+    # which is fine. We just keep `level` as `nil`. But
+    # we tell the user.
+    level = nil
+  end
+
+  # Some constants, such as "true" resolve to booleans, so the
+  # above error checking doesn't catch it. This will check to make
+  # sure that the log level is an integer, as Log4r requires.
+  level = nil if !level.is_a?(Integer)
+
+  if !level
+    # We directly write to stderr here because the VagrantError system
+    # is not setup yet.
+    $stderr.puts "Invalid VAGRANT_LOG level is set: #{ENV["VAGRANT_LOG"]}"
+    $stderr.puts ""
+    $stderr.puts "Please use one of the standard log levels: debug, info, warn, or error"
+    exit 1
+  end
+
+  # Set the logging level on all "vagrant" namespaced
+  # logs as long as we have a valid level.
+  if level
+    logger = Log4r::Logger.new("vagrant")
+    logger.outputters = Log4r::Outputter.stderr
+    logger.level = level
+    logger = nil
+  end
 end
 
 require 'pathname'
@@ -24,6 +56,7 @@ module Vagrant
   autoload :BoxCollection, 'vagrant/box_collection'
   autoload :CLI,           'vagrant/cli'
   autoload :Command,       'vagrant/command'
+  autoload :Communication, 'vagrant/communication'
   autoload :Config,        'vagrant/config'
   autoload :DataStore,     'vagrant/data_store'
   autoload :Downloaders,   'vagrant/downloaders'
@@ -120,10 +153,11 @@ Vagrant.config_keys.register(:package) { Vagrant::Config::PackageConfig }
 
 # Register the built-in hosts
 Vagrant.hosts.register(:arch)    { Vagrant::Hosts::Arch }
-Vagrant.hosts.register(:freebsd) { Vagrant::Hosts::FreeBSD }
-Vagrant.hosts.register(:fedora)  { Vagrant::Hosts::Fedora }
-Vagrant.hosts.register(:linux)   { Vagrant::Hosts::Linux }
 Vagrant.hosts.register(:bsd)     { Vagrant::Hosts::BSD }
+Vagrant.hosts.register(:fedora)  { Vagrant::Hosts::Fedora }
+Vagrant.hosts.register(:freebsd) { Vagrant::Hosts::FreeBSD }
+Vagrant.hosts.register(:linux)   { Vagrant::Hosts::Linux }
+Vagrant.hosts.register(:windows) { Vagrant::Hosts::Windows }
 
 # Register the built-in guests
 Vagrant.guests.register(:arch)    { Vagrant::Guest::Arch }

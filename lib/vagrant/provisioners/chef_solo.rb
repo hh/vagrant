@@ -1,3 +1,5 @@
+require "log4r"
+
 require 'vagrant/provisioners/chef'
 
 module Vagrant
@@ -17,10 +19,24 @@ module Vagrant
         def initialize
           super
 
-          @cookbooks_path = ["cookbooks", [:vm, "cookbooks"]]
-          @roles_path = nil
-          @data_bags_path = nil
-          @nfs = false
+          @__default = ["cookbooks", [:vm, "cookbooks"]]
+        end
+
+        # Provide defaults in such a way that they won't override the instance
+        # variable. This is so merging continues to work properly.
+        def cookbooks_path
+          @cookbooks_path || _default_cookbook_path
+        end
+
+        # This stores a reference to the default cookbook path which is used
+        # later. Do not use this publicly. I apologize for not making it
+        # "protected" but it has to be called by Vagrant internals later.
+        def _default_cookbook_path
+          @__default
+        end
+
+        def nfs
+          @nfs || false
         end
 
         def validate(env, errors)
@@ -39,6 +55,11 @@ module Vagrant
         Config
       end
 
+      def initialize(env, config)
+        super
+        @logger = Log4r::Logger.new("vagrant::provisioners::chef_solo")
+      end
+
       def prepare
         @cookbook_folders = expanded_folders(config.cookbooks_path, "cookbooks")
         @role_folders = expanded_folders(config.roles_path, "roles")
@@ -50,6 +71,19 @@ module Vagrant
       end
 
       def provision!
+        # Verify that the proper shared folders exist.
+        check = []
+        [@cookbook_folders, @role_folders, @data_bags_folders].each do |folders|
+          folders.each do |type, local_path, remote_path|
+            # We only care about checking folders that have a local path, meaning
+            # they were shared from the local machine, rather than assumed to
+            # exist on the VM.
+            check << remote_path if local_path
+          end
+        end
+
+        verify_shared_folders(check)
+
         verify_binary(chef_binary_path("chef-solo"))
         chown_provisioning_folder
         setup_json
@@ -65,16 +99,27 @@ module Vagrant
         # path element which contains the folder location (:host or :vm)
         paths = [paths] if paths.is_a?(String) || paths.first.is_a?(Symbol)
 
-        paths.map do |path|
+        results = []
+        paths.each do |path|
           path = [:host, path] if !path.is_a?(Array)
           type, path = path
 
           # Create the local/remote path based on whether this is a host
           # or VM path.
           local_path = nil
-          local_path = File.expand_path(path, env[:root_path]) if type == :host
           remote_path = nil
           if type == :host
+            # Get the expanded path that the host path points to
+            local_path = File.expand_path(path, env[:root_path])
+
+            # Super hacky but if we're expanded the default cookbook paths,
+            # and one of the host paths doesn't exist, then just ignore it,
+            # because that is fine.
+            if paths.equal?(config._default_cookbook_path) && !File.directory?(local_path)
+              @logger.info("'cookbooks' folder doesn't exist on defaults. Ignoring.")
+              next
+            end
+
             # Path exists on the host, setup the remote path
             remote_path = "#{config.provisioning_path}/chef-solo-#{get_and_update_counter(:cookbooks_path)}"
           else
@@ -92,9 +137,11 @@ module Vagrant
           # If we have specified a folder name to append then append it
           remote_path += "/#{appended_folder}" if appended_folder
 
-          # Return the result
-          [type, local_path, remote_path]
+          # Append the result
+          results << [type, local_path, remote_path]
         end
+
+        results
       end
 
       # Shares the given folders with the given prefix. The folders should
@@ -113,7 +160,7 @@ module Vagrant
         roles_path = guest_paths(@role_folders).first
         data_bags_path = guest_paths(@data_bags_folders).first
 
-        setup_config("chef_solo_solo", "solo.rb", {
+        setup_config("provisioners/chef_solo/solo", "solo.rb", {
           :node_name => config.node_name,
           :provisioning_path => config.provisioning_path,
           :cookbooks_path => cookbooks_path,
@@ -127,22 +174,40 @@ module Vagrant
         command_env = config.binary_env ? "#{config.binary_env} " : ""
         command = "#{command_env}#{chef_binary_path("chef-solo")} -c #{config.provisioning_path}/solo.rb -j #{config.provisioning_path}/dna.json"
 
-        env[:ui].info I18n.t("vagrant.provisioners.chef.running_solo")
-        env[:vm].ssh.execute do |ssh|
-          ssh.sudo!(command) do |channel, type, data|
-            if type == :exit_status
-              ssh.check_exit_status(data, command)
-            else
-              # Output the data with the proper color based on the stream.
-              color = type == :stdout ? :green : :red
+        config.attempts.times do |attempt|
+          if attempt == 0
+            env[:ui].info I18n.t("vagrant.provisioners.chef.running_solo")
+          else
+            env[:ui].info I18n.t("vagrant.provisioners.chef.running_solo_again")
+          end
 
-              # Note: Be sure to chomp the data to avoid the newlines that the
-              # Chef outputs.
-              env[:ui].info(data.chomp, :color => color, :prefix => false)
-            end
+          exit_status = env[:vm].channel.sudo(command, :error_check => false) do |type, data|
+            # Output the data with the proper color based on the stream.
+            color = type == :stdout ? :green : :red
+
+            # Note: Be sure to chomp the data to avoid the newlines that the
+            # Chef outputs.
+            env[:ui].info(data.chomp, :color => color, :prefix => false)
+          end
+
+          # There is no need to run Chef again if it converges
+          return if exit_status == 0
+        end
+
+        # If we reached this point then Chef never converged! Error.
+        raise ChefError, :no_convergence
+      end
+
+      def verify_shared_folders(folders)
+        folders.each do |folder|
+          @logger.debug("Checking for shared folder: #{folder}")
+          if !env[:vm].channel.test("test -d #{folder}")
+            raise ChefError, :missing_shared_folders
           end
         end
       end
+
+      protected
 
       # Extracts only the remote paths from a list of folders
       def guest_paths(folders)

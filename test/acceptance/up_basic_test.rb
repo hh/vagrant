@@ -30,19 +30,4 @@ describe "vagrant up", "basics" do
     foodir.mkdir
     assert_execute("vagrant", "up", :chdir => foodir.to_s)
   end
-
-  it "should have a '/vagrant' shared folder" do
-    initialize_valid_environment
-
-    # This is the file that will be created from the VM,
-    # but should then exist on the host machine
-    foofile = environment.workdir.join("foo")
-
-    assert_execute("vagrant", "up")
-    foofile.exist?.should_not be,
-        "'foo' should not exist yet."
-
-    assert_execute("vagrant", "ssh", "-c", "touch /vagrant/foo")
-    foofile.exist?.should be, "'foo' should exist since it was touched in the shared folder"
-  end
 end

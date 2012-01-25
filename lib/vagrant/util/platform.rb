@@ -1,4 +1,5 @@
 require 'rbconfig'
+require 'tempfile'
 
 module Vagrant
   module Util
@@ -41,6 +42,16 @@ module Vagrant
         # @return [Boolean]
         def bit32?
           !bit64?
+        end
+
+        # Returns a boolean noting whether the terminal supports color.
+        # output.
+        def terminal_supports_colors?
+          if windows?
+            return ENV.has_key?("ANSICON")
+          end
+
+          true
         end
 
         def tar_file_options
