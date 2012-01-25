@@ -135,6 +135,7 @@ Vagrant.guests.register(:redhat)  { Vagrant::Guest::Redhat }
 Vagrant.guests.register(:solaris) { Vagrant::Guest::Solaris }
 Vagrant.guests.register(:suse)    { Vagrant::Guest::Suse }
 Vagrant.guests.register(:ubuntu)  { Vagrant::Guest::Ubuntu }
+Vagrant.guests.register(:windows) { Vagrant::Guest::Windows }
 
 # Register the built-in provisioners
 Vagrant.provisioners.register(:chef_solo)     { Vagrant::Provisioners::ChefSolo }
