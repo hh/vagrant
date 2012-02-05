@@ -69,40 +69,23 @@ module Vagrant
       # does not exist in /etc/user_attr. TODO
       def halt
         vm.ui.info I18n.t("vagrant.guest.windows.attempting_halt")
-        # vm.ssh.execute do |ssh|
-        #   # Wait until the VM's state is actually powered off. If this doesn't
-        #   # occur within a reasonable amount of time (15 seconds by default),
-        #   # then simply return and allow Vagrant to kill the machine.
-        #   count = 0
-        #   last_error = nil
-        #   while vm.state != :poweroff
-        #     begin
-        #       ssh.exec!("#{vm.config.solaris.suexec_cmd} /usr/sbin/poweroff")
-        #     rescue IOError => e
-        #       # Save the last error; if it's not shutdown in a reasonable amount
-        #       # of attempts we will re-raise the error so it's not hidden for
-        #       # all time
-        #       last_error = e
-        #     end
-
-        #     count += 1
-        #     if count >= vm.config.solaris.halt_timeout
-        #       # Check for last error and re-raise it
-        #       if last_error != nil
-        #         raise last_error
-        #       else
-        #         # Otherwise, just return
-        #         return
-        #       end
-        #     end
-
-        #     # Still opportunities remaining; sleep and loop
-        #     sleep vm.config.solaris.halt_check_interval
-        #   end # while
-        # end # do
+        vm.channel.execute("mkdir -p #{guestpath}")
+        # Wait until the VM's state is actually powered off. If this doesn't
+        # occur within a reasonable amount of time (15 seconds by default),
+        # then simply return and allow Vagrant to kill the machine.
+        count = 0
+        while @vm.state != :poweroff
+          count += 1
+          if count >= @vm.config.windows.halt_timeout
+            raise WindowsError, :_key => :guestpath_expand_fail
+            return 
+          end
+          sleep @vm.config.windows.halt_check_interval
+        end
       end
 
-      def mount_shared_folder(ssh, name, guestpath, owner, group)
+      def mount_shared_folder(ssh, name, options
+          )#, owner, group)
         # Create the shared folder
         # ssh.exec!("#{vm.config.solaris.suexec_cmd} mkdir -p #{guestpath}")
 
