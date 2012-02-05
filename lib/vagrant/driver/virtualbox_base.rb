@@ -133,9 +133,8 @@ module Vagrant
       # Imports the VM from an OVF file.
       #
       # @param [String] ovf Path to the OVF file.
-      # @param [String] name Name of the VM.
       # @return [String] UUID of the imported VM.
-      def import(ovf, name)
+      def import(ovf)
       end
 
       # Returns a list of forwarded ports for a VM.
@@ -259,6 +258,14 @@ module Vagrant
           if @interrupted
             @logger.info("Exit code != 0, but interrupted. Ignoring.")
           else
+            raise Errors::VBoxManageError, :command => command.inspect
+          end
+        else
+          # Sometimes, VBoxManage fails but doesn't actual return a non-zero
+          # exit code. For this we inspect the output and determine if an error
+          # occurred.
+          if r.stderr =~ /VBoxManage: error:/
+            @logger.info("VBoxManage error text found, assuming error.")
             raise Errors::VBoxManageError, :command => command.inspect
           end
         end

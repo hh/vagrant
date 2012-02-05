@@ -64,10 +64,6 @@ module Vagrant
         # Make sure the stdin does not buffer
         process.io.stdin.sync = true
 
-        # Close the writer pipes, since we're just reading
-        stdout_writer.close
-        stderr_writer.close
-
         # Create a dictionary to store all the output we see.
         io_data = { :stdout => "", :stderr => "" }
 
@@ -139,6 +135,12 @@ module Vagrant
           # Yield to any listeners any remaining data
           yield io_name, extra_data if block_given?
         end
+
+        # Close the writer pipes. Note that we do this so late (after the process
+        # has quit) to work around an issue with childprocess and JRuby. It is
+        # bizarre but it works.
+        stdout_writer.close
+        stderr_writer.close
 
         # Return an exit status container
         return Result.new(process.exit_code, io_data[:stdout], io_data[:stderr])

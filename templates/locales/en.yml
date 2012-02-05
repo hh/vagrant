@@ -16,16 +16,6 @@ en:
     errors:
       base_vm_not_found: The base VM with the name '%{name}' was not found.
       box_not_found: Box '%{name}' could not be found.
-      chef_not_detected: |-
-        The chef (either `chef-solo` or `chef-client`) binary was not found on
-        the VM and is required for chef provisioning. Please verify that chef
-        is installed and that the binary is available on the PATH.
-      puppet_not_detected: |-
-        The `puppet` binary was not found on the VM and is required for Puppet provisioning.
-        Please verify that Puppet is installed and that the binary is available on the PATH.
-      puppetd_not_detected: |-
-        The `puppetd` binary was not found on the VM is required for Puppet Server provisioning.
-        Please verify that Puppet is installed and that the binary is available on the PATH.
       cli_invalid_options: |-
         An invalid option was specified. The help for this command
         is available below.
@@ -309,6 +299,9 @@ en:
             Enabling bridged network...
           preparing: |-
             Preparing bridged networking...
+          specific_not_found: |-
+            Specific bridge '%{bridge}' not found. You may be asked to specify
+            which network to bridge to.
         check_box:
           not_found: Box %{name} was not found. Fetching box from specified URL...
           not_specified: |-
@@ -393,7 +386,8 @@ en:
           forwarding_entry: |-
             -- %{guest_port} => %{host_port} (adapter %{adapter})
           non_nat: |-
-            VirtualBox adapter #%{adapter} not configured as "NAT". Skipping: '%{name}'.
+            VirtualBox adapter #%{adapter} not configured as "NAT". Skipping port
+            forwards on this adapter.
           privileged_ports: |-
             You are trying to forward to privileged ports (ports <= 1024). Most
             operating systems restrict this to only privileged process (typically
@@ -564,9 +558,17 @@ en:
       arch:
         nfs_export:
           prepare: "Preparing to edit /etc/exports. Administrator privileges will be required..."
+      freebsd:
+        nfs_whitespace: |-
+          FreeBSD hosts do not support sharing directories with whitespace in
+          their path. Please adjust your path accordingly.
 
     provisioners:
       chef:
+        chef_not_detected: |-
+          The chef binary (either `chef-solo` or `chef-client`) was not found on
+          the VM and is required for chef provisioning. Please verify that chef
+          is installed and that the binary is available on the PATH.
         json: "Generating chef JSON and uploading..."
         client_key_folder: "Creating folder to hold client key..."
         upload_validation_key: "Uploading chef client validation key..."

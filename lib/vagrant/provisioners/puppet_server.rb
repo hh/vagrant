@@ -10,11 +10,8 @@ module Vagrant
         attr_accessor :puppet_node
         attr_accessor :options
 
-        def initialize
-          @puppet_server = "puppet"
-          @puppet_node = "puppet_node"
-          @options = []
-        end
+        def puppet_server; @puppet_server || "puppet"; end
+        def options; @options ||= []; end
       end
 
       def self.config_class
@@ -29,29 +26,38 @@ module Vagrant
       def verify_binary(binary)
         env[:vm].channel.sudo("which #{binary}",
                               :error_class => PuppetServerError,
-                              :error_key => :puppetd_not_detected,
+                              :error_key => :not_detected,
                               :binary => binary)
       end
 
       def run_puppetd_client
         options = config.options
-        options = options.join(" ") if options.is_a?(Array)
+        options = [options] if !options.is_a?(Array)
+
+        # Intelligently set the puppet node cert name based on certain
+        # external parameters.
+        cn = nil
         if config.puppet_node
+          # If a node name is given, we use that directly for the certname
           cn = config.puppet_node
+        elsif env[:vm].config.vm.host_name
+          # If a host name is given, we explicitly set the certname to
+          # nil so that the hostname becomes the cert name.
+          cn = nil
         else
+          # Otherwise, we default to the name of the box.
           cn = env[:vm].config.vm.box
         end
 
-        command = "puppetd #{options} --server #{config.puppet_server} --certname #{cn}"
+        # Add the certname option if there is one
+        options += ["--certname", cn] if cn
+        options = options.join(" ")
+
+        command = "puppetd #{options} --server #{config.puppet_server}"
 
         env[:ui].info I18n.t("vagrant.provisioners.puppet_server.running_puppetd")
         env[:vm].channel.sudo(command) do |type, data|
-          # Output the data with the proper color based on the stream.
-          color = type == :stdout ? :green : :red
-
-          # Note: Be sure to chomp the data to avoid the newlines that the
-          # Chef outputs.
-          env[:ui].info(data.chomp, :color => color, :prefix => false)
+          env[:ui].info(data.chomp, :prefix => false)
         end
       end
     end

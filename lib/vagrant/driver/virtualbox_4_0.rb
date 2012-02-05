@@ -9,7 +9,7 @@ module Vagrant
       def initialize(uuid)
         super()
 
-        @logger = Log4r::Logger.new("vagrant::driver::virtualbox_4_1")
+        @logger = Log4r::Logger.new("vagrant::driver::virtualbox_4_0")
         @uuid = uuid
       end
 
@@ -112,6 +112,10 @@ module Vagrant
             args.concat(["--macaddress#{adapter[:adapter]}",
                          adapter[:mac_address]])
           end
+
+          if adapter[:nic_type]
+            args.concat(["--nictype#{adapter[:adapter]}", adapter[:nic_type].to_s])
+          end
         end
 
         execute("modifyvm", @uuid, *args)
@@ -147,11 +151,15 @@ module Vagrant
         execute("controlvm", @uuid, "poweroff")
       end
 
-      def import(ovf, name)
+      def import(ovf)
+        output = ""
         total = ""
         last  = 0
-        execute("import", ovf, "--vsys", "0", "--vmname", name) do |type, data|
-          if type == :stderr
+        execute("import", ovf) do |type, data|
+          if type == :stdout
+            # Keep track of the stdout so that we can get the VM name
+            output << data
+          elsif type == :stderr
             # Append the data so we can see the full view
             total << data
 
@@ -170,6 +178,14 @@ module Vagrant
             end
           end
         end
+
+        # Find the name of the VM name
+        if output !~ /Suggested VM name "(.+?)"/
+          @logger.error("Couldn't find VM name in the output.")
+          return nil
+        end
+
+        name = $1.to_s
 
         output = execute("list", "vms")
         if output =~ /^"#{Regexp.escape(name)}" \{(.+?)\}$/
@@ -274,7 +290,7 @@ module Vagrant
             elsif line =~ /^NetworkMask:\s+(.+?)$/
               info[:netmask] = $1.to_s
             elsif line =~ /^Status:\s+(.+?)$/
-                info[:status] = $1.to_s
+              info[:status] = $1.to_s
             end
           end
 
@@ -374,10 +390,18 @@ module Vagrant
         execute("modifyvm", @uuid, "--macaddress1", mac)
       end
 
+      def set_name(name)
+        execute("modifyvm", @uuid, "--name", name)
+      end
+
       def share_folders(folders)
         folders.each do |folder|
-          execute("sharedfolder", "add", @uuid, "--name",
-                  folder[:name], "--hostpath", folder[:hostpath])
+          args = ["--name",
+                  folder[:name],
+                  "--hostpath",
+                  folder[:hostpath]]
+          args << "--transient" if folder.has_key?(:transient) && folder[:transient]
+          execute("sharedfolder", "add", @uuid, *args)
         end
       end
 

@@ -1,5 +1,28 @@
-## 0.9.4 (unreleased)
+## 0.9.6 (unreleased)
 
+  - Fix strange issue with inconsistent childprocess reads on JRuby. [GH-711]
+
+## 0.9.5 (February 5, 2012)
+
+  - Fix crashing case when all network options are `:auto_config false`.
+    [GH-689]
+  - Type of network adapter can be specified with `:nic_type`. [GH-690]
+  - The NFS version can be specified with the `:nfs_version` option
+    on shared folders. [GH-557]
+  - Greatly improved FreeBSD guest and host support. [GH-695]
+  - Fix instability with RedHat guests and host only and bridged networks.
+    [GH-698]
+  - When using bridged networking, only list the network interfaces
+    that are up as choices. [GH-701]
+  - More intelligent handling of the `certname` option for puppet
+    server. [GH-702]
+  - You may now explicitly set the network to bridge to in the Vagrantfile
+    using the `:bridge` parameter. [GH-655]
+
+## 0.9.4 (January 28, 2012)
+
+  - Important internal changes to middlewares that make plugin developer's
+    lives much easier. [GH-684]
   - Match VM names that have parens, brackets, etc.
   - Detect when the VirtualBox kernel module is not loaded and error. [GH-677]
   - Set `:auto_config` to false on any networking option to not automatically
@@ -10,6 +33,12 @@
     properly created if they don't exist. [GH-667]
   - Fix the precedence for Arch, Ubuntu, and FreeBSD host classes so
     they are properly detected. [GH-683]
+  - Fix issue where VM import sometimes made strange VirtualBox folder
+    layouts. [GH-669]
+  - Call proper `id` command on Solaris. [GH-679]
+  - More accurate VBoxManage error detection.
+  - Shared folders can now be marked as transient using the `:transient`
+    flag. [GH-688]
 
 ## 0.9.3 (January 24, 2012)
 
