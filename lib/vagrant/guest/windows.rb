@@ -3,23 +3,27 @@ module Vagrant
     # A general Vagrant system implementation for "windows".
     #
     # Contributed by Chris McClimans <chris@hippiehacker.org>
-    class Solaris < Base
+    class Windows < Base
       # A custom config class which will be made accessible via `config.windows`
       # This is not necessary for all system implementers, of course. However,
       # generally, Vagrant tries to make almost every aspect of its execution
       # configurable, and this assists that goal.
       class WindowsConfig < Vagrant::Config::Base
-        # attr_accessor :halt_timeout
-        # attr_accessor :halt_check_interval
+        attr_accessor :winrm_user
+        attr_accessor :winrm_password
+        attr_accessor :halt_timeout
+        attr_accessor :halt_check_interval
         # # This sets the command to use to execute items as a superuser. sudo is default
         # attr_accessor :suexec_cmd
-        # attr_accessor :device
+        attr_accessor :device
 
         def initialize
-          # @halt_timeout = 30
-          # @halt_check_interval = 1
+          @winrm_user = 'Administrator'
+          @winrm_password = 'vagrant'
+          @halt_timeout = 30
+          @halt_check_interval = 1
           # @suexec_cmd = 'sudo'
-          # @device = "e1000g"
+          @device = "e1000g"
         end
       end
 
@@ -44,6 +48,9 @@ module Vagrant
       end
 
       def change_host_name(name)
+        #### ON windows, renaming a computer seems to require a reboot
+        command="wmic computersystem where name=\"%COMPUTERNAME%\" call rename name=\"#{name}\""
+
         # su_cmd = vm.config.solaris.suexec_cmd
         # vm.ssh.execute do |ssh|
         #   # Only do this if the hostname is not already set
@@ -61,7 +68,7 @@ module Vagrant
       #
       # does not exist in /etc/user_attr. TODO
       def halt
-        # vm.ui.info I18n.t("vagrant.guest.windows.attempting_halt")
+        vm.ui.info I18n.t("vagrant.guest.windows.attempting_halt")
         # vm.ssh.execute do |ssh|
         #   # Wait until the VM's state is actually powered off. If this doesn't
         #   # occur within a reasonable amount of time (15 seconds by default),

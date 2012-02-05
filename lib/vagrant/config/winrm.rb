@@ -4,16 +4,13 @@ module Vagrant
       attr_accessor :username
       attr_accessor :password
       attr_accessor :host
-      attr_accessor :forwarded_port_key
-      attr_accessor :forwarded_port_destination
+      attr_accessor :port
+      attr_accessor :guest_port
       attr_accessor :max_tries
       attr_accessor :timeout
-      attr_accessor :port
 
       def initialize
         @username = "Administrator"
-        @shell = "bash"
-        @port = nil
       end
 
       def validate(env, errors)

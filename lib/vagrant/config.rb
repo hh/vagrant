@@ -11,6 +11,7 @@ module Vagrant
     autoload :SSHConfig,     'vagrant/config/ssh'
     autoload :VagrantConfig, 'vagrant/config/vagrant'
     autoload :VMConfig,      'vagrant/config/vm'
+    autoload :WINRMConfig,      'vagrant/config/winrm'
 
     CONFIGURE_MUTEX = Mutex.new
 
