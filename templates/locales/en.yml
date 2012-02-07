@@ -179,6 +179,17 @@ en:
       vm_not_running: |-
         VM must be running to open SSH connection. Run `vagrant up`
         to start the virtual machine.
+      winrm_port_not_detected: |-
+        Vagrant couldn't determine the WINRM port for your VM! Vagrant attempts to
+        automatically find a forwarded port that matches your `config.winrm.guest_port`
+        (default: 5985) value and uses this for WINRM. Alternatively, if `config.winrm.port`
+        is set, it will use this.
+
+        However, in this case Vagrant was unable to find a forwarded port that matches
+        the guest port and `config.winrm.port` is not set!
+
+        Please make sure that you have a forwarded port that goes to the configured
+        guest port value, or specify an explicit SSH port with `config.ssh.port`.
 
 #-------------------------------------------------------------------------------
 # Translations for config validation errors
@@ -641,6 +652,8 @@ en:
         upload_path_not_set: "`upload_path` must be set for the shell provisioner."
 
     guest:
+      windows:
+        attempting_halt: "Attempting to halt the host"        
       base:
         unsupported_configure_networks: |-
           Networking features require support that is dependent on the operating
