@@ -63,7 +63,7 @@ module Vagrant
     # Returns a channel object to communicate with the virtual
     # machine.
     def channel
-      @channel ||= Communication::SSH.new(self)
+      @channel ||= Communication::WINRM.new(self)
     end
 
     # Returns the guest for this VM, loading the distro of the system if
@@ -83,6 +83,10 @@ module Vagrant
     # is used to get SSH credentials with the virtual machine.
     def ssh
       @ssh ||= SSH.new(self)
+    end
+
+    def winrm
+      @winrm ||= WINRM.new(self)
     end
 
     # Returns the state of the VM as a symbol.
