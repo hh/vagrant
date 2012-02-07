@@ -402,5 +402,11 @@ module Vagrant
       status_code(24)
       error_key(:power_off, "vagrant.actions.vm.export")
     end
+
+    class WINRMPortNotDetected < VagrantError
+      status_code(550)
+      error_key(:winrm_port_not_detected)
+    end
+
   end
 end
