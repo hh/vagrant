@@ -1,62 +1,62 @@
-require 'winrm'
-
-class WinRM::WinRMWebService
-  def powershell_version
-    shell_id = open_shell
-    command_id = run_command(shell_id, '%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell -c echo $PSVersionTable')
-    command_output = get_command_output(shell_id, command_id) #, &block)
-    cleanup_command(shell_id, command_id)
-    close_shell(shell_id)
-    #command_output
-    /PSVersion\W*(\d+.\d+)/.match(
-      command_output[:data].map {|x| x[:stdout]}.join
-      ) { |m| m[1] }
-  end
-  def run_powershell_script(script_file, &block)
-    # if an IO object is passed read it..otherwise assume the contents of the file were passed
-    script = script_file.kind_of?(IO) ? script_file.read : script_file
-    script = script.chars.to_a.join("\x00") + "\x00"
-    puts script.inspect
-    if(defined?(script.encode))
-      script = script.encode('ASCII-8BIT')
-      script = Base64.strict_encode64(script)
-    else
-      script = Base64.encode64(script).chomp
-    end
-  
-    shell_id = open_shell
-    command = "%SystemRoot%\\system32\\WindowsPowerShell\\v1.0\\powershell -encodedCommand #{script}"
-    puts command
-    command_id = run_command(shell_id, command)
-    command_output = get_command_output(shell_id, command_id, &block)
-    cleanup_command(shell_id, command_id)
-    close_shell(shell_id)
-    command_output
-  end
-end
+require 'log4r'
+#require 'em-winrm'
 
 module Vagrant
   # Manages WINRM access to a specific environment. Allows an environment to
   # run commands, upload files, and check if a host is up.
   class WINRM
-    include Util::Retryable
     include Util::SafeExec
-    attr_accessor :env
 
-    def initialize(environment)
-      @env = environment
-      @winrm = WinRM::WinRMWebService.new(
-        "http://localhost:#{port}/wsman",
-        :plaintext,
-        :user => 'Administrator',
-        :pass => 'vagrant',
-        :basic_auth_only => true)
+    def initialize(vm)
+      @vm = vm
+      @logger = Log4r::Logger.new("vagrant::winrm")
     end
+
+    # Returns a hash of information necessary for accessing this
+    # virtual machine via WINRM.
+    #
+    # @return [Hash]
+    def info
+      results = {
+        :host          => @vm.config.winrm.host,
+        :port          => @vm.config.winrm.port || @vm.driver.ssh_port(@vm.config.winrm.guest_port),
+        :username      => @vm.config.winrm.username
+      }
+
+      # This can happen if no port is set and for some reason Vagrant
+      # can't detect an SSH port.
+      raise Errors::WINRMPortNotDetected if !results[:port]
+
+      # Return the results
+      return results
+    end
+
+
+    # Connects to the environment's virtual machine, replacing the ruby
+    # process with an SSH process.
+    #
+    # @param [Hash] opts Options hash
+    # @options opts [Boolean] :plain_mode If True, doesn't authenticate with
+    #   the machine, only connects, allowing the user to connect.
+    def exec(opts={})
+      # Get the SSH information and cache it here
+      winrm_info = info
+
+      options = {}
+      options[:host] = winrm_info[:host]
+      options[:port] = winrm_info[:port]
+      options[:username] = winrm_info[:username]
+
+      @logger.info("Invoking WINRM: #{}")
+      raise Foo
+    end
+
 
     def execute(command)
-      @winrm.cmd(command) do |stdout, stderr|
-      end
+      session
     end
+
+
 
     # Uploads a file from `from` to `to`. `from` is expected to be a filename
     # or StringIO, and `to` is expected to be a path. This method simply forwards
@@ -101,32 +101,26 @@ EOS
       return opts[:port] if opts[:port]
 
       # Check if a port was specified in the config
-      return @env.config.ssh.port if @env.config.ssh.port
+      return @env.config.winrm.port if @env.config.winrm.port
 
       # Check if we have an SSH forwarded port
       pnum_by_name = nil
       pnum_by_destination = nil
-      env.vm.vm.network_adapters.each do |na|
-        # Look for the port number by name...
-        pnum_by_name = na.nat_driver.forwarded_ports.detect do |fp|
-          fp.name == env.config.ssh.forwarded_port_key
-        end
-
+      @logger.info("Looking for winrm port: #{opts}")
+      @logger.info("Looking for winrm port: #{env.config.winrm.inspect}")
+      puts 'FOOOO'
+      puts env.config.winrm.inspect
+      env.vm.vm.network_adapters.each do |na| 
         # Look for the port number by destination...
         pnum_by_destination = na.nat_driver.forwarded_ports.detect do |fp|
-          fp.guestport == env.config.ssh.forwarded_port_destination
+          fp.guestport == env.config.winrm.guest_port
         end
-
-        # pnum_by_name is what we're looking for here, so break early
-        # if we have it.
-        break if pnum_by_name
       end
 
-      return pnum_by_name.hostport if pnum_by_name
       return pnum_by_destination.hostport if pnum_by_destination
 
       # This should NEVER happen.
-      raise Errors::SSHPortNotDetected
+      raise Errors::WINRMPortNotDetected
     end
   end
 end
