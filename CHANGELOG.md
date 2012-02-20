@@ -1,6 +1,45 @@
-## 0.9.6 (unreleased)
+## 1.0.0 (unreleased)
+
+  - `vagrant gem` should now be used to install Vagrant plugins that are
+    gems. This installs the gems to a private gem folder that Vagrant adds
+    to its own load path. This isolates Vagrant-related gems from system
+    gems.
+  - Plugin loading no longer happens right when Vagrant is loaded, but when
+    a Vagrant environment is loaded. I don't anticipate this causing any
+    problems but it is a backwards incompatible change should a plugin
+    depend on this (but I don't see any reason why they would).
+  - `vagrant destroy` now asks for confirmation by default. This can be
+    overridden with the `--force` flag. [GH-699]
+  - Fix issue with Puppet config inheritance. [GH-722]
+  - Fix issue where starting a VM on some systems was incorrectly treated
+    as failing. [GH-720]
+  - It is now an error to specify the packaging `output` as a directory. [GH-730]
+  - Unix-style line endings are used properly for guest OS. [GH-727]
+  - Retry certain VirtualBox operations, since they intermittently fail.
+    [GH-726]
+  - Fix issue where Vagrant would sometimes "lose" a VM if an exception
+    occurred. [GH-725]
+  - `vagrant destroy` destroys virtual machines in reverse order. [GH-739]
+  - Add an `fsid` option to Linux NFS exports. [GH-736]
+  - Fix edge case where an exception could be raised in networking code. [GH-742]
+  - Add missing translation for the "guru meditation" state. [GH-745]
+  - Check that VirtualBox exists before certain commands. [GH-746]
+
+## 0.9.7 (February 9, 2012)
+
+  - Fix regression where all subprocess IO simply didn't work with
+    Windows. [GH-721]
+
+## 0.9.6 (February 7, 2012)
 
   - Fix strange issue with inconsistent childprocess reads on JRuby. [GH-711]
+  - `vagrant ssh` does a direct `exec()` syscall now instead of going through
+    the shell. This makes it so things like shell expansion oddities no longer
+    cause problems. [GH-715]
+  - Fix crashing case if there are no ports to forward.
+  - Fix issue surrounding improper configuration of host only networks on
+    RedHat guests. [GH-719]
+  - NFS should work properly on Gentoo. [GH-706]
 
 ## 0.9.5 (February 5, 2012)
 

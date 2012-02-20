@@ -47,6 +47,12 @@ en:
         may run at any given time to avoid problems with VirtualBox inconsistencies
         occurring. Please wait for the other instance of Vagrant to end and then
         try again.
+      gem_command_in_bundler: |-
+        You cannot run the `vagrant gem` command while in a bundler environment.
+        Bundler messes around quite a bit with the RubyGem load paths and gems
+        installed via `vagrant gem` are excluded by Bundler.
+
+        Instead, please include your Vagrant plugins in your Gemfile itself.
       guest:
         invalid_class: |-
           The specified guest class does not inherit from `Vagrant::Guest::Base`.
@@ -236,6 +242,18 @@ en:
         vm_not_running: "VM is not currently running. Please bring it up to run this command."
       box:
         no_installed_boxes: "There are no installed boxes! Use `vagrant box add` to add some."
+      destroy:
+        confirmation: "Are you sure you want to destroy the '%{name}' VM? [Y/N] "
+        will_not_destroy: |-
+          The VM '%{name}' will not be destroyed, since the confirmation
+          was declined.
+      gem:
+        help_preamble: |-
+          `vagrant gem` is used to install Vagrant plugins via the RubyGems
+          system. In fact, `vagrant gem` is just a frontend to the actual `gem`
+          interface, with the difference being that Vagrant sets up a custom
+          directory where gems are installed so that they are isolated from your
+          system gems.
       init:
         success: |-
           A `Vagrantfile` has been placed in this directory. You are now
@@ -248,6 +266,11 @@ en:
           stopped without properly closing the session. Run `vagrant up`
           to resume this virtual machine. If any problems persist, you may
           have to destroy and restart the virtual machine.
+        gurumeditation: |-
+          The VM is in the "guru meditation" state. This is a rare case which means
+          that an internal error in VitualBox caused the VM to fail. This is always
+          the sign of a bug in VirtualBox. You can try to bring your VM back online
+          with a `vagrant up`.
         inaccessible: |-
           The VM is inaccessible! This is a rare case which means that VirtualBox
           can't find your VM configuration. This usually happens when upgrading
@@ -533,6 +556,9 @@ en:
           output_exists: |-
             The specified file to save the package as already exists. Please
             remove this file or specify a different file name for outputting.
+          output_is_directory: |-
+            The specified output is a directory. Please specify a path including
+            a filename.
           requires_directory: |-
             A directory was not specified to package. This should never happen
             and is a result of an internal inconsistency.

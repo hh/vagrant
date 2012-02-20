@@ -1,9 +1,14 @@
 require 'set'
 require 'tempfile'
 
+require 'vagrant/util/template_renderer'
+
 module Vagrant
   module Guest
     class Arch < Linux
+      # Make the TemplateRenderer top-level
+      include Vagrant::Util
+
       def change_host_name(name)
         # Only do this if the hostname is not already set
         if !vm.channel.test("sudo hostname | grep '#{name}'")
@@ -23,13 +28,16 @@ module Vagrant
         entries = []
         networks.each do |network|
           interfaces.add(network[:interface])
-          entries << TemplateRenderer.render("guests/arch/network_#{network[:type]}",
-                                             :options => network)
+          entry = TemplateRenderer.render("guests/arch/network_#{network[:type]}",
+                                          :options => network)
+
+          entries << entry
         end
 
         # Perform the careful dance necessary to reconfigure
         # the network interfaces
         temp = Tempfile.new("vagrant")
+        temp.binmode
         temp.write(entries.join("\n"))
         temp.close
 

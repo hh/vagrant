@@ -23,7 +23,8 @@ module Vagrant
       end
 
       def clear_shared_folders
-        execute("showvminfo", @uuid, "--machinereadable").split("\n").each do |line|
+        info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+        info.split("\n").each do |line|
           if line =~ /^SharedFolderNameMachineMapping\d+="(.+?)"$/
             execute("sharedfolder", "remove", @uuid, "--name", $1.to_s)
           end
@@ -70,8 +71,9 @@ module Vagrant
 
         execute("list", "vms").split("\n").each do |line|
           if line =~ /^".+?"\s+\{(.+?)\}$/
-            execute("showvminfo", $1.to_s, "--machinereadable").split("\n").each do |info|
-              if info =~ /^hostonlyadapter\d+="(.+?)"$/
+            info = execute("showvminfo", $1.to_s, "--machinereadable", :retryable => true)
+            info.split("\n").each do |line|
+              if line =~ /^hostonlyadapter\d+="(.+?)"$/
                 networks.delete($1.to_s)
               end
             end
@@ -144,7 +146,7 @@ module Vagrant
                        pf_builder.join(",")])
         end
 
-        execute("modifyvm", @uuid, *args)
+        execute("modifyvm", @uuid, *args) if !args.empty?
       end
 
       def halt
@@ -202,7 +204,8 @@ module Vagrant
 
         results = []
         current_nic = nil
-        execute("showvminfo", uuid, "--machinereadable").split("\n").each do |line|
+        info = execute("showvminfo", uuid, "--machinereadable", :retryable => true)
+        info.split("\n").each do |line|
           # This is how we find the nic that a FP is attached to,
           # since this comes first.
           current_nic = $1.to_i if line =~ /^nic(\d+)=".+?"$/
@@ -246,7 +249,8 @@ module Vagrant
       end
 
       def read_guest_additions_version
-        output = execute("guestproperty", "get", @uuid, "/VirtualBox/GuestAdd/Version")
+        output = execute("guestproperty", "get", @uuid, "/VirtualBox/GuestAdd/Version",
+                         :retryable => true)
         if output =~ /^Value: (.+?)$/
           # Split the version by _ since some distro versions modify it
           # to look like this: 4.1.2_ubuntu, and the distro part isn't
@@ -260,7 +264,7 @@ module Vagrant
 
       def read_host_only_interfaces
         dhcp = {}
-        execute("list", "dhcpservers").split("\n\n").each do |block|
+        execute("list", "dhcpservers", :retryable => true).split("\n\n").each do |block|
           info = {}
 
           block.split("\n").each do |line|
@@ -279,7 +283,7 @@ module Vagrant
           dhcp[info[:network]] = info
         end
 
-        execute("list", "hostonlyifs").split("\n\n").collect do |block|
+        execute("list", "hostonlyifs", :retryable => true).split("\n\n").collect do |block|
           info = {}
 
           block.split("\n").each do |line|
@@ -302,7 +306,8 @@ module Vagrant
       end
 
       def read_mac_address
-        execute("showvminfo", @uuid, "--machinereadable").split("\n").each do |line|
+        info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+        info.split("\n").each do |line|
           return $1.to_s if line =~ /^macaddress1="(.+?)"$/
         end
 
@@ -310,7 +315,7 @@ module Vagrant
       end
 
       def read_machine_folder
-        execute("list", "systemproperties").split("\n").each do |line|
+        execute("list", "systemproperties", :retryable => true).split("\n").each do |line|
           if line =~ /^Default machine folder:\s+(.+?)$/i
             return $1.to_s
           end
@@ -321,7 +326,8 @@ module Vagrant
 
       def read_network_interfaces
         nics = {}
-        execute("showvminfo", @uuid, "--machinereadable").split("\n").each do |line|
+        info = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
+        info.split("\n").each do |line|
           if line =~ /^nic(\d+)="(.+?)"$/
             adapter = $1.to_i
             type    = $2.to_sym
@@ -347,7 +353,7 @@ module Vagrant
       end
 
       def read_state
-        output = execute("showvminfo", @uuid, "--machinereadable")
+        output = execute("showvminfo", @uuid, "--machinereadable", :retryable => true)
         if output =~ /^name="<inaccessible>"$/
           return :inaccessible
         elsif output =~ /^VMState="(.+?)"$/
@@ -359,7 +365,7 @@ module Vagrant
 
       def read_used_ports
         ports = []
-        execute("list", "vms").split("\n").each do |line|
+        execute("list", "vms", :retryable => true).split("\n").each do |line|
           if line =~ /^".+?" \{(.+?)\}$/
             uuid = $1.to_s
 
@@ -377,7 +383,7 @@ module Vagrant
 
       def read_vms
         results = []
-        execute("list", "vms").split("\n").each do |line|
+        execute("list", "vms", :retryable => true).split("\n").each do |line|
           if line =~ /^".+?" \{(.+?)\}$/
             results << $1.to_s
           end
@@ -417,11 +423,27 @@ module Vagrant
       end
 
       def start(mode)
-        execute("startvm", @uuid, "--type", mode.to_s)
+        command = ["startvm", @uuid, "--type", mode.to_s]
+        r = raw(*command)
+
+        if r.exit_code == 0 || r.stdout =~ /VM ".+?" has been successfully started/
+          # Some systems return an exit code 1 for some reason. For that
+          # we depend on the output.
+          return true
+        end
+
+        # If we reached this point then it didn't work out.
+        raise Errors::VBoxManageError, :command => command.inspect
       end
 
       def suspend
         execute("controlvm", @uuid, "savestate")
+      end
+
+      def verify!
+        # This command sometimes fails if kernel drivers aren't properly loaded
+        # so we just run the command and verify that it succeeded.
+        execute("list", "hostonlyifs")
       end
 
       def verify_image(path)

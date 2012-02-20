@@ -14,12 +14,10 @@ module Vagrant
         attr_accessor :pp_path
         attr_accessor :options
 
-        def initialize
-          @manifest_file = "default.pp"
-          @manifests_path = "manifests"
-          @pp_path = "/tmp/vagrant-puppet"
-          @options = []
-        end
+        def manifest_file; @manifest_file || "default.pp"; end
+        def manifests_path; @manifests_path || "manifests"; end
+        def pp_path; @pp_path || "/tmp/vagrant-puppet"; end
+        def options; @options ||= []; end
 
         # Returns the manifests path expanded relative to the root path of the
         # environment.
@@ -146,12 +144,7 @@ module Vagrant
                              :manifest => @manifest_file)
 
         env[:vm].channel.sudo(command) do |type, data|
-          # Output the data with the proper color based on the stream.
-          color = type == :stdout ? :green : :red
-
-          # Note: Be sure to chomp the data to avoid the newlines that the
-          # Chef outputs.
-          env[:ui].info(data.chomp, :color => color, :prefix => false)
+          env[:ui].info(data.chomp, :prefix => false)
         end
       end
 

@@ -173,6 +173,11 @@ module Vagrant
       error_key(:environment_locked)
     end
 
+    class GemCommandInBundler < VagrantError
+      status_code(71)
+      error_key(:gem_command_in_bundler)
+    end
+
     class HomeDirectoryMigrationFailed < VagrantError
       status_code(53)
       error_key(:home_dir_migration_failed)
@@ -256,6 +261,11 @@ module Vagrant
     class PackageIncludeMissing < VagrantError
       status_code(20)
       error_key(:include_file_missing, "vagrant.actions.general.package")
+    end
+
+    class PackageOutputDirectory < VagrantError
+      status_code(72)
+      error_key(:output_is_directory, "vagrant.actions.general.package")
     end
 
     class PackageOutputExists < VagrantError

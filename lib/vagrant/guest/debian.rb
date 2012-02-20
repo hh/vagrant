@@ -22,13 +22,16 @@ module Vagrant
         entries = []
         networks.each do |network|
           interfaces.add(network[:interface])
-          entries << TemplateRenderer.render("guests/debian/network_#{network[:type]}",
-                                             :options => network)
+          entry = TemplateRenderer.render("guests/debian/network_#{network[:type]}",
+                                          :options => network)
+
+          entries << entry
         end
 
         # Perform the careful dance necessary to reconfigure
         # the network interfaces
         temp = Tempfile.new("vagrant")
+        temp.binmode
         temp.write(entries.join("\n"))
         temp.close
 

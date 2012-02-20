@@ -1,8 +1,13 @@
 require 'tempfile'
 
+require 'vagrant/util/template_renderer'
+
 module Vagrant
   module Guest
     class Gentoo < Linux
+      # Make the TemplateRenderer top-level
+      include Vagrant::Util
+
       def configure_networks(networks)
         # Remove any previous host only network additions to the interface file
         vm.channel.sudo("sed -e '/^#VAGRANT-BEGIN/,/^#VAGRANT-END/ d' /etc/conf.d/net > /tmp/vagrant-network-interfaces")
@@ -15,6 +20,7 @@ module Vagrant
 
           # Upload the entry to a temporary location
           temp = Tempfile.new("vagrant")
+          temp.binmode
           temp.write(entry)
           temp.close
 

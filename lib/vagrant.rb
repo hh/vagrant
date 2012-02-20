@@ -50,6 +50,9 @@ require 'i18n'
 # there are issues with ciphers not being properly loaded.
 require 'openssl'
 
+# Always make the version available
+require 'vagrant/version'
+
 module Vagrant
   autoload :Action,        'vagrant/action'
   autoload :Box,           'vagrant/box'
@@ -137,6 +140,7 @@ I18n.load_path << File.expand_path("templates/locales/en.yml", Vagrant.source_ro
 # Register the built-in commands
 Vagrant.commands.register(:box)          { Vagrant::Command::Box }
 Vagrant.commands.register(:destroy)      { Vagrant::Command::Destroy }
+Vagrant.commands.register(:gem)          { Vagrant::Command::Gem }
 Vagrant.commands.register(:halt)         { Vagrant::Command::Halt }
 Vagrant.commands.register(:init)         { Vagrant::Command::Init }
 Vagrant.commands.register(:package)      { Vagrant::Command::Package }
@@ -162,6 +166,7 @@ Vagrant.hosts.register(:arch)    { Vagrant::Hosts::Arch }
 Vagrant.hosts.register(:bsd)     { Vagrant::Hosts::BSD }
 Vagrant.hosts.register(:fedora)  { Vagrant::Hosts::Fedora }
 Vagrant.hosts.register(:freebsd) { Vagrant::Hosts::FreeBSD }
+Vagrant.hosts.register(:gentoo)  { Vagrant::Hosts::Gentoo }
 Vagrant.hosts.register(:linux)   { Vagrant::Hosts::Linux }
 Vagrant.hosts.register(:windows) { Vagrant::Hosts::Windows }
 
@@ -188,7 +193,3 @@ Vagrant.provisioners.register(:shell)         { Vagrant::Provisioners::Shell }
 Vagrant.config_keys.register(:freebsd) { Vagrant::Guest::FreeBSD::FreeBSDConfig }
 Vagrant.config_keys.register(:linux)   { Vagrant::Guest::Linux::LinuxConfig }
 Vagrant.config_keys.register(:solaris) { Vagrant::Guest::Solaris::SolarisConfig }
-
-# Load the things which must be loaded before anything else.
-require 'vagrant/version'
-Vagrant::Plugin.load!
