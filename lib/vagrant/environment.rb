@@ -2,6 +2,7 @@ require 'pathname'
 require 'fileutils'
 
 require 'log4r'
+require 'rubygems'  # This is needed for plugin loading below.
 
 require 'vagrant/util/file_mode'
 require 'vagrant/util/platform'
@@ -55,13 +56,16 @@ module Vagrant
       }.merge(opts || {})
 
       # Set the default working directory to look for the vagrantfile
+      opts[:cwd] ||= ENV["VAGRANT_CWD"] if ENV.has_key?("VAGRANT_CWD")
       opts[:cwd] ||= Dir.pwd
       opts[:cwd] = Pathname.new(opts[:cwd])
+      raise Errors::EnvironmentNonExistentCWD if !opts[:cwd].directory?
 
-      # Set the default vagrantfile name, which can be either Vagrantfile
-      # or vagrantfile (capital for backwards compatibility)
-      opts[:vagrantfile_name] ||= ["Vagrantfile", "vagrantfile"]
+      # Set the Vagrantfile name up. We append "Vagrantfile" and "vagrantfile" so that
+      # those continue to work as well, but anything custom will take precedence.
+      opts[:vagrantfile_name] ||= []
       opts[:vagrantfile_name] = [opts[:vagrantfile_name]] if !opts[:vagrantfile_name].is_a?(Array)
+      opts[:vagrantfile_name] += ["Vagrantfile", "vagrantfile"]
 
       # Set instance variables for all the configuration parameters.
       @cwd    = opts[:cwd]
@@ -138,7 +142,7 @@ module Vagrant
     def primary_vm
       return vms.values.first if !multivm?
 
-      config.vm.defined_vms.each do |name, subvm|
+      config.global.vm.defined_vms.each do |name, subvm|
         return vms[name] if subvm.options[:primary]
       end
 

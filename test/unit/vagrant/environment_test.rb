@@ -17,8 +17,18 @@ describe Vagrant::Environment do
     end
 
     it "is set to the cwd given" do
-      instance = described_class.new(:cwd => "foobarbaz")
-      instance.cwd.should == Pathname.new("foobarbaz")
+      directory = File.dirname(__FILE__)
+      instance = described_class.new(:cwd => directory)
+      instance.cwd.should == Pathname.new(directory)
+    end
+
+    it "is set to the environmental variable VAGRANT_CWD" do
+      pending "A good temporary ENV thing"
+    end
+
+    it "raises an exception if the CWD doesn't exist" do
+      expect { described_class.new(:cwd => "doesntexist") }.
+        to raise_error(Vagrant::Errors::EnvironmentNonExistentCWD)
     end
   end
 
@@ -86,6 +96,26 @@ describe Vagrant::Environment do
     end
   end
 
+  describe "primary VM" do
+    it "should be the only VM if not a multi-VM environment" do
+      instance.primary_vm.should == instance.vms.values.first
+    end
+
+    it "should be the VM marked as the primary" do
+      environment = isolated_environment do |env|
+        env.vagrantfile(<<-VF)
+Vagrant::Config.run do |config|
+  config.vm.define :foo
+  config.vm.define :bar, :primary => true
+end
+VF
+      end
+
+      env = environment.create_vagrant_env
+      env.primary_vm.should == env.vms[:bar]
+    end
+  end
+
   describe "loading configuration" do
     it "should load global configuration" do
       environment = isolated_environment do |env|
@@ -98,6 +128,19 @@ VF
 
       env = environment.create_vagrant_env
       env.config.global.vagrant.dotfile_name.should == "foo"
+    end
+
+    it "should load from a custom Vagrantfile" do
+      environment = isolated_environment do |env|
+        env.file("non_standard_name", <<-VF)
+Vagrant::Config.run do |config|
+  config.vagrant.dotfile_name = "custom"
+end
+VF
+      end
+
+      env = environment.create_vagrant_env(:vagrantfile_name => "non_standard_name")
+      env.config.global.vagrant.dotfile_name.should == "custom"
     end
 
     it "should load VM configuration" do

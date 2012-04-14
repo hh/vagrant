@@ -49,11 +49,11 @@ module Vagrant
       @logger.info("Loading guest: #{guest}")
 
       if guest.is_a?(Class)
-        raise Errors::VMGuestError, :_key => :invalid_class, :system => guest.to_s if !(guest <= Guest::Base)
+        raise Errors::VMGuestError, :_key => :invalid_class, :guest => guest.to_s if !(guest <= Guest::Base)
         @guest = guest.new(self)
       elsif guest.is_a?(Symbol)
         guest_klass = Vagrant.guests.get(guest)
-        raise Errors::VMGuestError, :_key => :unknown_type, :system => guest.to_s if !guest_klass
+        raise Errors::VMGuestError, :_key => :unknown_type, :guest => guest.to_s if !guest_klass
         @guest = guest_klass.new(self)
       else
         raise Errors::VMGuestError, :unspecified
@@ -132,10 +132,12 @@ module Vagrant
       begin
         @driver = Driver::VirtualBox.new(@uuid)
       rescue Driver::VirtualBox::VMNotFound
-        # Clear the UUID since this VM doesn't exist. Note that this calls
-        # back into `reload!` but shouldn't ever result in infinite
-        # recursion since `@uuid` will be nil.
+        # Clear the UUID since this VM doesn't exist.
         @uuid = nil
+
+        # Reset the driver. This shouldn't raise a VMNotFound since we won't
+        # feed it a UUID.
+        @driver = Driver::VirtualBox.new
       end
     end
 
@@ -158,8 +160,8 @@ module Vagrant
       run_action(:halt, options)
     end
 
-    def reload
-      run_action(:reload)
+    def reload(options=nil)
+      run_action(:reload, options)
     end
 
     def provision
@@ -184,8 +186,6 @@ module Vagrant
       @_ui.resource = @name
       @_ui
     end
-
-    protected
 
     def run_action(name, options=nil)
       options = {

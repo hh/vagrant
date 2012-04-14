@@ -148,6 +148,11 @@ module Vagrant
       error_key(:deprecation)
     end
 
+    class DestroyRequiresForce < VagrantError
+      status_code(74)
+      error_key(:destroy_requires_force)
+    end
+
     class DotfileIsDirectory < VagrantError
       status_code(46)
       error_key(:dotfile_is_directory)
@@ -158,6 +163,11 @@ module Vagrant
       error_key(:file_missing, "vagrant.downloaders.file")
     end
 
+    class DownloaderHTTPConnectTimeout < VagrantError
+      status_code(79)
+      error_key(:connection_timeout, "vagrant.downloaders.http")
+    end
+
     class DownloaderHTTPSocketError < VagrantError
       status_code(38)
       error_key(:socket_error, "vagrant.downloaders.http")
@@ -166,6 +176,11 @@ module Vagrant
     class DownloaderHTTPStatusError < VagrantError
       status_code(51)
       error_key(:status_error, "vagrant.downloaders.http")
+    end
+
+    class EnvironmentNonExistentCWD < VagrantError
+      status_code(75)
+      error_key(:environment_non_existent_cwd)
     end
 
     class EnvironmentLockedError < VagrantError
@@ -303,9 +318,19 @@ module Vagrant
       error_key(:ssh_connection_refused)
     end
 
+    class SSHConnectionTimeout < VagrantError
+      status_code(78)
+      error_key(:ssh_connection_timeout)
+    end
+
     class SSHKeyBadPermissions < VagrantError
       status_code(12)
       error_key(:ssh_key_bad_permissions)
+    end
+
+    class SSHKeyTypeNotSupported < VagrantError
+      status_code(76)
+      error_key(:ssh_key_type_not_supported)
     end
 
     class SSHPortNotDetected < VagrantError
@@ -321,6 +346,11 @@ module Vagrant
     class SSHUnavailableWindows < VagrantError
       status_code(10)
       error_key(:ssh_unavailable_windows)
+    end
+
+    class UIExpectsTTY < VagrantError
+      status_code(73)
+      error_key(:ui_expects_tty)
     end
 
     class VagrantInterrupt < VagrantError
@@ -358,6 +388,11 @@ module Vagrant
       error_key(:virtualbox_kernel_module_not_loaded)
     end
 
+    class VirtualBoxInstallIncomplete < VagrantError
+      status_code(80)
+      error_key(:virtualbox_install_incomplete)
+    end
+
     class VMBaseMacNotSpecified < VagrantError
       status_code(47)
       error_key(:no_base_mac, "vagrant.actions.vm.match_mac")
@@ -371,6 +406,11 @@ module Vagrant
     class VMFailedToBoot < VagrantError
       status_code(21)
       error_key(:failed_to_boot, "vagrant.actions.vm.boot")
+    end
+
+    class VMFailedToRun < VagrantError
+      status_code(77)
+      error_key(:failed_to_run, "vagrant.actions.vm.boot")
     end
 
     class VMGuestError < VagrantError

@@ -1,5 +1,7 @@
 require 'log4r'
 
+require "vagrant/util/safe_puts"
+
 module Vagrant
   module Command
     # Base class for any CLI commands.
@@ -7,6 +9,8 @@ module Vagrant
     # This class provides documentation on the interface as well as helper
     # functions that a command has.
     class Base
+      include Util::SafePuts
+
       def initialize(argv, env)
         @argv = argv
         @env  = env
@@ -41,7 +45,7 @@ module Vagrant
 
         # Add the help option, which must be on every command.
         opts.on_tail("-h", "--help", "Print this help") do
-          puts opts.help
+          safe_puts(opts.help)
           return nil
         end
 
@@ -60,32 +64,38 @@ module Vagrant
       # @param [String] name The name of the VM. Nil if every VM.
       # @param [Boolean] single_target If true, then an exception will be
       #   raised if more than one target is found.
-      def with_target_vms(name=nil, options=nil)
+      def with_target_vms(names=nil, options=nil)
         # Using VMs requires a Vagrant environment to be properly setup
         raise Errors::NoEnvironmentError if !@env.root_path
 
         # Setup the options hash
         options ||= {}
 
+        # Require that names be an array
+        names ||= []
+        names = [names] if !names.is_a?(Array)
+
         # First determine the proper array of VMs.
         vms = []
-        if name
-          raise Errors::MultiVMEnvironmentRequired if !@env.multivm?
+        if names.length > 0
+          names.each do |name|
+            raise Errors::MultiVMEnvironmentRequired if !@env.multivm?
 
-          if name =~ /^\/(.+?)\/$/
-            # This is a regular expression name, so we convert to a regular
-            # expression and allow that sort of matching.
-            regex = Regexp.new($1.to_s)
+            if pattern = name[/^\/(.+?)\/$/, 1]
+              # This is a regular expression name, so we convert to a regular
+              # expression and allow that sort of matching.
+              regex = Regexp.new(pattern)
 
-            @env.vms.each do |name, vm|
-              vms << vm if name =~ regex
+              @env.vms.each do |name, vm|
+                vms << vm if name =~ regex
+              end
+
+              raise Errors::VMNoMatchError if vms.empty?
+            else
+              # String name, just look for a specific VM
+              vms << @env.vms[name.to_sym]
+              raise Errors::VMNotFoundError, :name => name if !vms[0]
             end
-
-            raise Errors::VMNoMatchError if vms.empty?
-          else
-            # String name, just look for a specific VM
-            vms << @env.vms[name.to_sym]
-            raise Errors::VMNotFoundError, :name => name if !vms[0]
           end
         else
           vms = @env.vms_ordered

@@ -25,16 +25,15 @@ module Vagrant
       def ready?
         @logger.debug("Checking whether SSH is ready...")
 
-        Timeout.timeout(@vm.config.ssh.timeout) do
-          connect
-        end
+        # Attempt to connect. This will raise an exception if it fails.
+        connect
 
         # If we reached this point then we successfully connected
         @logger.info("SSH is ready!")
         true
-      rescue Timeout::Error, Errors::SSHConnectionRefused, Net::SSH::Disconnect => e
-        # The above errors represent various reasons that SSH may not be
-        # ready yet. Return false.
+      rescue Errors::VagrantError => e
+        # We catch a `VagrantError` which would signal that something went
+        # wrong expectedly in the `connect`, which means we didn't connect.
         @logger.info("SSH not up: #{e.inspect}")
         return false
       end
@@ -129,10 +128,29 @@ module Vagrant
         @vm.ssh.check_key_permissions(ssh_info[:private_key_path])
 
         # Connect to SSH, giving it a few tries
-        @logger.info("Connecting to SSH: #{ssh_info[:host]}:#{ssh_info[:port]}")
-        exceptions = [Errno::ECONNREFUSED, Net::SSH::Disconnect]
-        connection = retryable(:tries => @vm.config.ssh.max_tries, :on => exceptions) do
-          Net::SSH.start(ssh_info[:host], ssh_info[:username], opts)
+        connection = nil
+        begin
+          exceptions = [Errno::ECONNREFUSED, Net::SSH::Disconnect, Timeout::Error]
+          connection = retryable(:tries => @vm.config.ssh.max_tries, :on => exceptions) do
+            Timeout.timeout(@vm.config.ssh.timeout) do
+              @logger.info("Attempting to connect to SSH: #{ssh_info[:host]}:#{ssh_info[:port]}")
+              Net::SSH.start(ssh_info[:host], ssh_info[:username], opts)
+            end
+          end
+        rescue Timeout::Error
+          # This happens if we continued to timeout when attempting to connect.
+          raise Errors::SSHConnectionTimeout
+        rescue Net::SSH::AuthenticationFailed
+          # This happens if authentication failed. We wrap the error in our
+          # own exception.
+          raise Errors::SSHAuthenticationFailed
+        rescue Errno::ECONNREFUSED
+          # This is raised if we failed to connect the max amount of times
+          raise Errors::SSHConnectionRefused
+        rescue NotImplementedError
+          # This is raised if a private key type that Net-SSH doesn't support
+          # is used. Show a nicer error.
+          raise Errors::SSHKeyTypeNotSupported
         end
 
         @connection = connection
@@ -145,14 +163,7 @@ module Vagrant
         # Yield the connection that is ready to be used and
         # return the value of the block
         return yield connection if block_given?
-      rescue Net::SSH::AuthenticationFailed
-        # This happens if authentication failed. We wrap the error in our
-        # own exception.
-        raise Errors::SSHAuthenticationFailed
-      rescue Errno::ECONNREFUSED
-        # This is raised if we failed to connect the max amount of times
-        raise Errors::SSHConnectionRefused
-      end
+     end
 
       # Executes the command on an SSH connection within a login shell.
       def shell_execute(connection, command, sudo=false)

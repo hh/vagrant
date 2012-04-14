@@ -36,6 +36,10 @@ en:
 
         %{message}
         Note that this error message will not appear in the next version of Vagrant.
+      destroy_requires_force: |-
+        Destroy doesn't have a TTY to ask for confirmation. Please pass the
+        `--force` flag to force a destroy, otherwise attach a TTY so that
+        the destroy can be confirmed.
       dotfile_is_directory: |-
         The local file Vagrant uses to store data ".vagrant" already exists
         and is a directory! If you are in your home directory, then please run
@@ -113,6 +117,11 @@ en:
         If that doesn't work, destroy your VM and recreate it with a `vagrant destroy`
         followed by a `vagrant up`. If that doesn't work, contact a Vagrant
         maintainer (support channels listed on the website) for more assistance.
+      ssh_connection_timeout: |-
+        Vagrant timed out while attempting to connect via SSH. This usually
+        means that the VM booted, but there are issues with the SSH configuration
+        or network connectivity issues. Please try to `vagrant reload` or
+        `vagrant up` again.
       ssh_key_bad_permissions: |-
         The private key to connect to this box via SSH has invalid permissions
         set on it. The permissions of the private key should be set to 0600, otherwise SSH will
@@ -120,6 +129,10 @@ en:
         permissions on the following file to 0600 and then try running this command again:
 
         %{key_path}
+      ssh_key_type_not_supported: |-
+        The private key you're attempting to use with this Vagrant box uses
+        an unsupported encryption type. The SSH library Vagrant uses does not support
+        this key type. Please use `ssh-rsa` or `ssh-dss` instead.
       ssh_port_not_detected: |-
         Vagrant couldn't determine the SSH port for your VM! Vagrant attempts to
         automatically find a forwarded port that matches your `config.ssh.guest_port`
@@ -141,6 +154,11 @@ en:
         Port: %{port}
         Username: %{username}
         Private key: %{key_path}
+      ui_expects_tty: |-
+        Vagrant is attempting to interface with the UI in a way that requires
+        a TTY. Most actions in Vagrant that require a TTY have configuration
+        switches to disable this requirement. Please do that or run Vagrant
+        with TTY.
       vagrantfile_exists: |-
         `Vagrantfile` already exists in this directory. Remove it before
         running `vagrant init`.
@@ -164,6 +182,10 @@ en:
         %{supported_versions}
       virtualbox_kernel_module_not_loaded: |-
         VirtualBox is complaining that the kernel module is not loaded. Please
+        run `VBoxManage --version` to see the error message which should contain
+        instructions on how to fix this error.
+      virtualbox_install_incomplete: |-
+        VirtualBox is complaining that the installation is incomplete. Please
         run `VBoxManage --version` to see the error message which should contain
         instructions on how to fix this error.
       virtualbox_not_detected: |-
@@ -285,6 +307,11 @@ en:
         not_created: |-
           The environment has not yet been created. Run `vagrant up` to
           create the environment.
+        paused: |-
+          The VM is paused. This VM may have been paused via the VirtualBox
+          GUI or the VBoxManage command line interface. To unpause, please
+          use the VirtualBox GUI and/or VBoxManage command line interface so
+          that vagrant would be able to control the VM again.
         poweroff: |-
           The VM is powered off. To restart the VM, simply run `vagrant up`
         running: |-
@@ -324,6 +351,11 @@ en:
           failed_to_boot: |-
             Failed to connect to VM via SSH. Please verify the VM successfully booted
             by looking at the VirtualBox GUI.
+          failed_to_run: |-
+            The VM failed to remain in the "running" state while attempting to boot.
+            This is normally caused by a misconfiguration or host system incompatibilities.
+            Please open the VirtualBox GUI and attempt to boot the virtual machine
+            manually to get a more informative error message.
         bridged_networking:
           available: |-
             Available bridged network interfaces:
@@ -570,6 +602,9 @@ en:
         download: "Copying box to temporary location..."
         file_missing: "The specified path to a file doesn't exist."
       http:
+        connection_timeout: |-
+          Vagrant timed out while attempting to connect to the HTTP host.
+          Please check your internet and proxy settings and try again.
         download: "Downloading box: %{url}"
         socket_error: |-
           An error occurred while trying to download the specified box. This most

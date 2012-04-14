@@ -1,8 +1,12 @@
 require 'optparse'
 
+require "vagrant/util/safe_puts"
+
 module Vagrant
   module Command
     class SSHConfig < Base
+      include Util::SafePuts
+
       def execute
         options = {}
 
@@ -11,7 +15,7 @@ module Vagrant
 
           opts.separator ""
 
-          opts.on("-h", "--host COMMAND", "Name the host for the config..") do |h|
+          opts.on("--host COMMAND", "Name the host for the config..") do |h|
             options[:host] = h
           end
         end
@@ -19,7 +23,7 @@ module Vagrant
         argv = parse_options(opts)
         return if !argv
 
-        with_target_vms(argv[0], :single_target => true) do |vm|
+        with_target_vms(argv, :single_target => true) do |vm|
           raise Errors::VMNotCreatedError if !vm.created?
           raise Errors::VMInaccessible if !vm.state == :inaccessible
 
@@ -36,9 +40,12 @@ module Vagrant
 
           # Render the template and output directly to STDOUT
           template = "commands/ssh_config/config"
-          $stdout.puts(Util::TemplateRenderer.render(template, variables))
+          safe_puts(Util::TemplateRenderer.render(template, variables))
         end
-      end
+
+        # Success, exit status 0
+        0
+       end
     end
   end
 end

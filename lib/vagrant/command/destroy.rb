@@ -20,7 +20,7 @@ module Vagrant
         return if !argv
 
         @logger.debug("'Destroy' each target VM...")
-        with_target_vms(argv[0], :reverse => true) do |vm|
+        with_target_vms(argv, :reverse => true) do |vm|
           if vm.created?
             # Boolean whether we should actually go through with the destroy
             # or not. This is true only if the "--force" flag is set or if the
@@ -30,8 +30,15 @@ module Vagrant
             if options[:force]
               do_destroy = true
             else
-              choice = @env.ui.ask(I18n.t("vagrant.commands.destroy.confirmation",
-                                          :name => vm.name))
+              choice = nil
+              begin
+                choice = @env.ui.ask(I18n.t("vagrant.commands.destroy.confirmation",
+                                            :name => vm.name))
+              rescue Errors::UIExpectsTTY
+                # We raise a more specific error but one which basically
+                # means the same thing.
+                raise Errors::DestroyRequiresForce
+              end
               do_destroy = choice.upcase == "Y"
             end
 
@@ -48,7 +55,10 @@ module Vagrant
             vm.ui.info I18n.t("vagrant.commands.common.vm_not_created")
           end
         end
-      end
+
+        # Success, exit status 0
+        0
+       end
     end
   end
 end

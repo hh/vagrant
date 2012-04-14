@@ -15,7 +15,7 @@ module Vagrant
         return if !argv
 
         @logger.debug("'suspend' each target VM...")
-        with_target_vms(argv[0]) do |vm|
+        with_target_vms(argv) do |vm|
           if vm.created?
             @logger.info("Suspending: #{vm.name}")
             vm.suspend
@@ -24,7 +24,10 @@ module Vagrant
             vm.ui.info I18n.t("vagrant.commands.common.vm_not_created")
           end
         end
-      end
+
+        # Success, exit status 0
+        0
+       end
     end
   end
 end

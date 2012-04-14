@@ -16,7 +16,7 @@ module Vagrant
 
         state = nil
         results = []
-        with_target_vms(argv[0]) do |vm|
+        with_target_vms(argv) do |vm|
           state = vm.state.to_s if !state
           results << "#{vm.name.to_s.ljust(25)}#{vm.state.to_s.gsub("_", " ")}"
         end
@@ -27,7 +27,10 @@ module Vagrant
                             :states => results.join("\n"),
                             :message => I18n.t("vagrant.commands.status.#{state}")),
                      :prefix => false)
-      end
+
+        # Success, exit status 0
+        0
+       end
     end
   end
 end
