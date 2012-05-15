@@ -74,13 +74,16 @@ module Vagrant
         def mount_shared_folders
           @env[:ui].info I18n.t("vagrant.actions.vm.share_folders.mounting")
 
-          # short guestpaths first, so we don't step on ourselves
-          folders = shared_folders.sort_by do |name, data|
-            if data[:guestpath]
-              data[:guestpath].length
-            else
-              # A long enough path to just do this at the end.
-              10000
+          @env["vm"].ssh.execute do |ssh|
+            # short guestpaths first, so we don't step on ourselves
+            shared_folders.sort_by {|name, data| data[:guestpath].length}.each do |name, data|
+            folders = shared_folders.sort_by do |name, data|
+              if data[:guestpath]
+                data[:guestpath].length
+              else
+                # A long enough path to just do this at the end.
+                10000
+              end
             end
           end
 
