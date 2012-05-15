@@ -1,15 +1,20 @@
+require 'pathname'
+
+require 'log4r'
+
 module Vagrant
   module Action
     module VM
       class ShareFolders
         def initialize(app, env)
-          @app = app
-          @env = env
+          @logger = Log4r::Logger.new("vagrant::action::vm::share_folders")
+          @app    = app
         end
 
         def call(env)
           @env = env
 
+          prepare_folders
           create_metadata
 
           @app.call(env)
@@ -32,6 +37,25 @@ module Vagrant
           end
         end
 
+        # Prepares the shared folders by verifying they exist and creating them
+        # if they don't.
+        def prepare_folders
+          shared_folders.each do |name, options|
+            hostpath = Pathname.new(options[:hostpath]).expand_path(@env[:root_path])
+
+            if !hostpath.directory? && options[:create]
+              # Host path doesn't exist, so let's create it.
+              @logger.debug("Host path doesn't exist, creating: #{hostpath}")
+
+              begin
+                hostpath.mkpath
+              rescue Errno::EACCES
+                raise Errors::SharedFolderCreateFailed, :path => hostpath.to_s
+              end
+            end
+          end
+        end
+
         def create_metadata
           @env[:ui].info I18n.t("vagrant.actions.vm.share_folders.creating")
 
@@ -39,7 +63,8 @@ module Vagrant
           shared_folders.each do |name, data|
             folders << {
               :name => name,
-              :hostpath => File.expand_path(data[:hostpath], @env[:root_path])
+              :hostpath => File.expand_path(data[:hostpath], @env[:root_path]),
+              :transient => data[:transient]
             }
           end
 
@@ -51,9 +76,7 @@ module Vagrant
 
           @env["vm"].ssh.execute do |ssh|
             # short guestpaths first, so we don't step on ourselves
-<<<<<<< HEAD
             shared_folders.sort_by {|name, data| data[:guestpath].length}.each do |name, data|
-=======
             folders = shared_folders.sort_by do |name, data|
               if data[:guestpath]
                 data[:guestpath].length
@@ -62,27 +85,29 @@ module Vagrant
                 10000
               end
             end
+          end
 
-            # Go through each folder and mount
-            folders.each do |name, data|
->>>>>>> ee33588d104408ea1c495809519eab93476d8161
-              if data[:guestpath]
-                # Guest path specified, so mount the folder to specified point
-                @env[:ui].info(I18n.t("vagrant.actions.vm.share_folders.mounting_entry",
-                                      :name => name,
-                                      :guest_path => data[:guestpath]))
+          # Go through each folder and mount
+          folders.each do |name, data|
+            if data[:guestpath]
+              # Guest path specified, so mount the folder to specified point
+              @env[:ui].info(I18n.t("vagrant.actions.vm.share_folders.mounting_entry",
+                                    :name => name,
+                                    :guest_path => data[:guestpath]))
 
-                # Calculate the owner and group
-                owner = data[:owner] || @env[:vm].config.ssh.username
-                group = data[:group] || @env[:vm].config.ssh.username
+              # Dup the data so we can pass it to the guest API
+              data = data.dup
 
-                # Mount the actual folder
-                @env[:vm].guest.mount_shared_folder(ssh, name, data[:guestpath], owner, group)
-              else
-                # If no guest path is specified, then automounting is disabled
-                @env[:ui].info(I18n.t("vagrant.actions.vm.share_folders.nomount_entry",
-                                      :name => name))
-              end
+              # Calculate the owner and group
+              data[:owner] ||= @env[:vm].config.ssh.username
+              data[:group] ||= @env[:vm].config.ssh.username
+
+              # Mount the actual folder
+              @env[:vm].guest.mount_shared_folder(name, data[:guestpath], data)
+            else
+              # If no guest path is specified, then automounting is disabled
+              @env[:ui].info(I18n.t("vagrant.actions.vm.share_folders.nomount_entry",
+                                    :name => name))
             end
           end
         end

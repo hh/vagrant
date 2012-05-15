@@ -26,7 +26,7 @@ module Vagrant
           @env[:ui].info I18n.t("vagrant.actions.vm.boot.waiting")
 
           @env[:vm].config.ssh.max_tries.to_i.times do |i|
-            if @env[:vm].ssh.up?
+            if @env[:vm].channel.ready?
               @env[:ui].info I18n.t("vagrant.actions.vm.boot.ready")
               return true
             end
@@ -34,6 +34,11 @@ module Vagrant
             # Return true so that the vm_failed_to_boot error doesn't
             # get shown
             return true if @env[:interrupted]
+
+            # If the VM is not starting or running, something went wrong
+            # and we need to show a useful error.
+            state = @env[:vm].state
+            raise Errors::VMFailedToRun if state != :starting && state != :running
 
             sleep 2 if !@env["vagrant.test"]
           end

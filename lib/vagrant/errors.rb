@@ -128,9 +128,14 @@ module Vagrant
       error_key(:failed, "vagrant.actions.box.verify")
     end
 
-    class CLIMissingEnvironment < VagrantError
+    class CLIInvalidUsage < VagrantError
+      status_code(69)
+      error_key(:cli_invalid_usage)
+    end
+
+    class CLIInvalidOptions < VagrantError
       status_code(1)
-      error_key(:cli_missing_env)
+      error_key(:cli_invalid_options)
     end
 
     class ConfigValidationFailed < VagrantError
@@ -143,6 +148,11 @@ module Vagrant
       error_key(:deprecation)
     end
 
+    class DestroyRequiresForce < VagrantError
+      status_code(74)
+      error_key(:destroy_requires_force)
+    end
+
     class DotfileIsDirectory < VagrantError
       status_code(46)
       error_key(:dotfile_is_directory)
@@ -151,6 +161,11 @@ module Vagrant
     class DownloaderFileDoesntExist < VagrantError
       status_code(37)
       error_key(:file_missing, "vagrant.downloaders.file")
+    end
+
+    class DownloaderHTTPConnectTimeout < VagrantError
+      status_code(79)
+      error_key(:connection_timeout, "vagrant.downloaders.http")
     end
 
     class DownloaderHTTPSocketError < VagrantError
@@ -163,9 +178,19 @@ module Vagrant
       error_key(:status_error, "vagrant.downloaders.http")
     end
 
+    class EnvironmentNonExistentCWD < VagrantError
+      status_code(75)
+      error_key(:environment_non_existent_cwd)
+    end
+
     class EnvironmentLockedError < VagrantError
       status_code(52)
       error_key(:environment_locked)
+    end
+
+    class GemCommandInBundler < VagrantError
+      status_code(71)
+      error_key(:gem_command_in_bundler)
     end
 
     class HomeDirectoryMigrationFailed < VagrantError
@@ -203,14 +228,29 @@ module Vagrant
       error_key(:multi_vm_target_required)
     end
 
+    class NetworkAdapterCollision < VagrantError
+      status_code(65)
+      error_key(:adapter_collision, "vagrant.actions.vm.network")
+    end
+
     class NetworkCollision < VagrantError
       status_code(29)
-      error_key(:collides, "vagrant.actions.vm.network")
+      error_key(:collides, "vagrant.actions.vm.host_only_network")
+    end
+
+    class NetworkNoAdapters < VagrantError
+      status_code(64)
+      error_key(:no_adapters, "vagrant.actions.vm.network")
+    end
+
+    class NetworkDHCPAlreadyAttached < VagrantError
+      status_code(68)
+      error_key(:dhcp_already_attached, "vagrant.actions.vm.network")
     end
 
     class NetworkNotFound < VagrantError
       status_code(30)
-      error_key(:not_found, "vagrant.actions.vm.network")
+      error_key(:not_found, "vagrant.actions.vm.host_only_network")
     end
 
     class NFSHostRequired < VagrantError
@@ -238,6 +278,11 @@ module Vagrant
       error_key(:include_file_missing, "vagrant.actions.general.package")
     end
 
+    class PackageOutputDirectory < VagrantError
+      status_code(72)
+      error_key(:output_is_directory, "vagrant.actions.general.package")
+    end
+
     class PackageOutputExists < VagrantError
       status_code(16)
       error_key(:output_exists, "vagrant.actions.general.package")
@@ -253,9 +298,19 @@ module Vagrant
       error_key(:dotfile_error, "vagrant.actions.vm.persist")
     end
 
+    class PluginLoadError < VagrantError
+      status_code(81)
+      error_key(:plugin_load_error)
+    end
+
     class SCPUnavailable < VagrantError
       status_code(56)
       error_key(:scp_unavailable)
+    end
+
+    class SharedFolderCreateFailed < VagrantError
+      status_code(66)
+      error_key(:shared_folder_create_failed)
     end
 
     class SSHAuthenticationFailed < VagrantError
@@ -268,9 +323,19 @@ module Vagrant
       error_key(:ssh_connection_refused)
     end
 
+    class SSHConnectionTimeout < VagrantError
+      status_code(78)
+      error_key(:ssh_connection_timeout)
+    end
+
     class SSHKeyBadPermissions < VagrantError
       status_code(12)
       error_key(:ssh_key_bad_permissions)
+    end
+
+    class SSHKeyTypeNotSupported < VagrantError
+      status_code(76)
+      error_key(:ssh_key_type_not_supported)
     end
 
     class SSHPortNotDetected < VagrantError
@@ -286,6 +351,11 @@ module Vagrant
     class SSHUnavailableWindows < VagrantError
       status_code(10)
       error_key(:ssh_unavailable_windows)
+    end
+
+    class UIExpectsTTY < VagrantError
+      status_code(73)
+      error_key(:ui_expects_tty)
     end
 
     class VagrantInterrupt < VagrantError
@@ -318,6 +388,16 @@ module Vagrant
       error_key(:virtualbox_not_detected)
     end
 
+    class VirtualBoxKernelModuleNotLoaded < VagrantError
+      status_code(70)
+      error_key(:virtualbox_kernel_module_not_loaded)
+    end
+
+    class VirtualBoxInstallIncomplete < VagrantError
+      status_code(80)
+      error_key(:virtualbox_install_incomplete)
+    end
+
     class VMBaseMacNotSpecified < VagrantError
       status_code(47)
       error_key(:no_base_mac, "vagrant.actions.vm.match_mac")
@@ -331,6 +411,11 @@ module Vagrant
     class VMFailedToBoot < VagrantError
       status_code(21)
       error_key(:failed_to_boot, "vagrant.actions.vm.boot")
+    end
+
+    class VMFailedToRun < VagrantError
+      status_code(77)
+      error_key(:failed_to_run, "vagrant.actions.vm.boot")
     end
 
     class VMGuestError < VagrantError

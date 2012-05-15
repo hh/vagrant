@@ -6,6 +6,7 @@ module Vagrant
   class Registry
     def initialize
       @actions = {}
+      @results_cache = {}
     end
 
     # Register a callable by key.
@@ -26,7 +27,16 @@ module Vagrant
     # action stack.
     def get(key)
       return nil if !@actions.has_key?(key)
-      @actions[key].call
+      return @results_cache[key] if @results_cache.has_key?(key)
+      @results_cache[key] = @actions[key].call
+    end
+    alias :[] :get
+
+    # Checks if the given key is registered with the registry.
+    #
+    # @return [Boolean]
+    def has_key?(key)
+      @actions.has_key?(key)
     end
 
     # Iterate over the keyspace.

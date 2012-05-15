@@ -33,15 +33,15 @@ describe Vagrant::Command::Base do
     ["-h", "--help"].each do |help_string|
       it "returns nil and prints the help if '#{help_string}' is given" do
         instance = klass.new([help_string], nil)
-        instance.should_receive(:puts)
+        instance.should_receive(:safe_puts)
         instance.parse_options(OptionParser.new).should be_nil
       end
     end
 
-    it "returns nil if invalid options are given" do
+    it "raises an error if invalid options are given" do
       instance = klass.new(["-f"], nil)
-      instance.should_receive(:puts)
-      instance.parse_options(OptionParser.new).should be_nil
+      expect { instance.parse_options(OptionParser.new) }.
+        to raise_error(Vagrant::Errors::CLIInvalidOptions)
     end
   end
 
@@ -66,13 +66,6 @@ describe Vagrant::Command::Base do
 
       expect { instance.with_target_vms }.
         to raise_error(Vagrant::Errors::NoEnvironmentError)
-    end
-
-    it "should raise an exception if a name is given in a non-multivm environment" do
-      environment.stub(:multivm?).and_return(false)
-
-      expect { instance.with_target_vms("foo") }.
-        to raise_error(Vagrant::Errors::MultiVMEnvironmentRequired)
     end
 
     it "should yield every VM in order is no name is given" do

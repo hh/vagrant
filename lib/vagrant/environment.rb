@@ -1,18 +1,21 @@
-require 'pathname'
 require 'fileutils'
+require 'pathname'
+require 'set'
 
 require 'log4r'
 
 require 'vagrant/util/file_mode'
+require 'vagrant/util/platform'
 
 module Vagrant
   # Represents a single Vagrant environment. A "Vagrant environment" is
   # defined as basically a folder with a "Vagrantfile." This class allows
   # access to the VMs, CLI, etc. all in the scope of this environment.
   class Environment
-    HOME_SUBDIRS = ["tmp", "boxes"]
+    HOME_SUBDIRS = ["tmp", "boxes", "gems"]
     DEFAULT_VM = :default
     DEFAULT_HOME = "~/.vagrant.d"
+    DEFAULT_RC = "~/.vagrantrc"
 
     # The `cwd` that this environment represents
     attr_reader :cwd
@@ -33,8 +36,15 @@ module Vagrant
     # The directory where boxes are stored.
     attr_reader :boxes_path
 
+    # The path where the plugins are stored (gems)
+    attr_reader :gems_path
+
     # The path to the default private key
     attr_reader :default_private_key_path
+
+    # This is a set of the vagrantrc files already loaded so that they
+    # are only loaded once.
+    @@loaded_rc = Set.new
 
     # Initializes a new environment with the given options. The options
     # is a hash where the main available key is `cwd`, which defines where
@@ -51,13 +61,16 @@ module Vagrant
       }.merge(opts || {})
 
       # Set the default working directory to look for the vagrantfile
+      opts[:cwd] ||= ENV["VAGRANT_CWD"] if ENV.has_key?("VAGRANT_CWD")
       opts[:cwd] ||= Dir.pwd
       opts[:cwd] = Pathname.new(opts[:cwd])
+      raise Errors::EnvironmentNonExistentCWD if !opts[:cwd].directory?
 
-      # Set the default vagrantfile name, which can be either Vagrantfile
-      # or vagrantfile (capital for backwards compatibility)
-      opts[:vagrantfile_name] ||= ["Vagrantfile", "vagrantfile"]
+      # Set the Vagrantfile name up. We append "Vagrantfile" and "vagrantfile" so that
+      # those continue to work as well, but anything custom will take precedence.
+      opts[:vagrantfile_name] ||= []
       opts[:vagrantfile_name] = [opts[:vagrantfile_name]] if !opts[:vagrantfile_name].is_a?(Array)
+      opts[:vagrantfile_name] += ["Vagrantfile", "vagrantfile"]
 
       # Set instance variables for all the configuration parameters.
       @cwd    = opts[:cwd]
@@ -79,10 +92,14 @@ module Vagrant
       setup_home_path
       @tmp_path = @home_path.join("tmp")
       @boxes_path = @home_path.join("boxes")
+      @gems_path  = @home_path.join("gems")
 
       # Setup the default private key
       @default_private_key_path = @home_path.join("insecure_private_key")
       copy_insecure_private_key
+
+      # Load the plugins
+      load_plugins
     end
 
     #---------------------------------------------------------------
@@ -130,7 +147,7 @@ module Vagrant
     def primary_vm
       return vms.values.first if !multivm?
 
-      config.vm.defined_vms.each do |name, subvm|
+      config.global.vm.defined_vms.each do |name, subvm|
         return vms[name] if subvm.options[:primary]
       end
 
@@ -166,8 +183,20 @@ module Vagrant
       # check is done after the detect check because the symbol check
       # will return nil, and we don't want to trigger a detect load.
       host_klass = config.global.vagrant.host
-      host_klass = Hosts.detect(Vagrant.hosts) if host_klass.nil? || host_klass == :detect
+      if host_klass.nil? || host_klass == :detect
+        hosts = {}
+        Vagrant.plugin("1").registered.each do |plugin|
+          hosts = hosts.merge(plugin.host.to_hash)
+        end
+
+        # Get the flattened list of available hosts
+        host_klass = Hosts.detect(hosts)
+      end
       host_klass = Vagrant.hosts.get(host_klass) if host_klass.is_a?(Symbol)
+
+      # If no host class is detected, we use the base class.
+      host_klass ||= Hosts::Base
+
       @host ||= host_klass.new(@ui)
     end
 
@@ -192,13 +221,10 @@ module Vagrant
     #
     # @return [Registry]
     def action_registry
-      return @action_registry if defined?(@action_registry)
-
-      # The action registry hasn't been loaded yet, so load it
-      # and setup the built-in actions with it.
-      @action_registry = Registry.new
-      Vagrant::Action.builtin!(@action_registry)
-      @action_registry
+      # For now we return the global built-in actions registry. In the future
+      # we may want to create an isolated registry that inherits from this
+      # global one, but for now there isn't a use case that calls for it.
+      Vagrant.actions
     end
 
     # Loads on initial access and reads data from the global data store.
@@ -346,24 +372,22 @@ module Vagrant
         # with Vagrant.
         config_loader.set(:default, File.expand_path("config/default.rb", Vagrant.source_root))
 
-        vagrantfile_name.each do |rootfile|
-          if box
-            # We load the box Vagrantfile
-            box_vagrantfile = box.directory.join(rootfile)
-            config_loader.set(:box, box_vagrantfile) if box_vagrantfile.exist?
-          end
+        if box
+          # We load the box Vagrantfile
+          box_vagrantfile = find_vagrantfile(box.directory)
+          config_loader.set(:box, box_vagrantfile) if box_vagrantfile
+        end
 
-          if home_path
-            # Load the home Vagrantfile
-            home_vagrantfile = home_path.join(rootfile)
-            config_loader.set(:home, home_vagrantfile) if home_vagrantfile.exist?
-          end
+        if home_path
+          # Load the home Vagrantfile
+          home_vagrantfile = find_vagrantfile(home_path)
+          config_loader.set(:home, home_vagrantfile) if home_vagrantfile
+        end
 
-          if root_path
-            # Load the Vagrantfile in this directory
-            root_vagrantfile = root_path.join(rootfile)
-            config_loader.set(:root, root_vagrantfile) if root_vagrantfile.exist?
-          end
+        if root_path
+          # Load the Vagrantfile in this directory
+          root_vagrantfile = find_vagrantfile(root_path)
+          config_loader.set(:root, root_vagrantfile) if root_vagrantfile
         end
 
         if subvm
@@ -391,7 +415,7 @@ module Vagrant
       # to simply be our configuration.
       if defined_vm_keys.empty?
         defined_vm_keys << DEFAULT_VM
-        defined_vms[DEFAULT_VM] = Config::VMConfig::SubVM.new
+        defined_vms[DEFAULT_VM] = VagrantPlugins::Kernel::VagrantConfigSubVM.new
       end
 
       vm_configs = defined_vm_keys.map do |vm_name|
@@ -468,9 +492,44 @@ module Vagrant
                      @default_private_key_path)
       end
 
-      if Util::FileMode.from_octal(@default_private_key_path.stat.mode) != "600"
-        @logger.info("Changing permissions on private key to 0600")
-        @default_private_key_path.chmod(0600)
+      if !Util::Platform.windows?
+        # On Windows, permissions don't matter as much, so don't worry
+        # about doing chmod.
+        if Util::FileMode.from_octal(@default_private_key_path.stat.mode) != "600"
+          @logger.info("Changing permissions on private key to 0600")
+          @default_private_key_path.chmod(0600)
+        end
+      end
+    end
+
+    # Finds the Vagrantfile in the given directory.
+    #
+    # @param [Pathname] path Path to search in.
+    # @return [Pathname]
+    def find_vagrantfile(search_path)
+      @vagrantfile_name.each do |vagrantfile|
+        current_path = search_path.join(vagrantfile)
+        return current_path if current_path.exist?
+      end
+
+      nil
+    end
+
+    # Loads the Vagrant plugins by properly setting up RubyGems so that
+    # our private gem repository is on the path.
+    def load_plugins
+      # Add our private gem path to the gem path and reset the paths
+      # that Rubygems knows about.
+      ENV["GEM_PATH"] = "#{@gems_path}:#{ENV["GEM_PATH"]}"
+      ::Gem.clear_paths
+
+      # Load the plugins
+      rc_path = File.expand_path(ENV["VAGRANT_RC"] || DEFAULT_RC)
+      if File.file?(rc_path) && @@loaded_rc.add?(rc_path)
+        @logger.debug("Loading RC file: #{rc_path}")
+        load rc_path
+      else
+        @logger.debug("RC file not found. Not loading: #{rc_path}")
       end
     end
   end
