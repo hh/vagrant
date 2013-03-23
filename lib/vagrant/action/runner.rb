@@ -1,5 +1,6 @@
 require 'log4r'
 
+require 'vagrant/action/hook'
 require 'vagrant/util/busy'
 
 # TODO:
@@ -10,8 +11,7 @@ module Vagrant
     class Runner
       @@reported_interrupt = false
 
-      def initialize(registry, globals=nil, &block)
-        @registry     = registry
+      def initialize(globals=nil, &block)
         @globals      = globals || {}
         @lazy_globals = block
         @logger       = Log4r::Logger.new("vagrant::action::runner")
@@ -19,15 +19,27 @@ module Vagrant
 
       def run(callable_id, options=nil)
         callable = callable_id
-        callable = Builder.new.use(callable_id) if callable_id.kind_of?(Class)
-        callable = registry_sequence(callable_id) if callable_id.kind_of?(Symbol)
+        callable = Builder.build(callable_id) if callable_id.kind_of?(Class)
         raise ArgumentError, "Argument to run must be a callable object or registered action." if !callable || !callable.respond_to?(:call)
 
         # Create the initial environment with the options given
-        environment = Environment.new
+        environment = {}
         environment.merge!(@globals)
         environment.merge!(@lazy_globals.call) if @lazy_globals
         environment.merge!(options || {})
+
+        # Setup the action hooks
+        hooks = Vagrant.plugin("2").manager.action_hooks(environment[:action_name])
+        if !hooks.empty?
+          @logger.info("Preparing hooks for middleware sequence...")
+          environment[:action_hooks] = hooks.map do |hook_proc|
+            Hook.new.tap do |h|
+              hook_proc.call(h)
+            end
+          end
+
+          @logger.info("#{environment[:action_hooks].length} hooks defined.")
+        end
 
         # Run the action chain in a busy block, marking the environment as
         # interrupted if a SIGINT occurs, and exiting cleanly once the
@@ -47,28 +59,10 @@ module Vagrant
         # We place a process lock around every action that is called
         @logger.info("Running action: #{callable_id}")
         Util::Busy.busy(int_callback) { callable.call(environment) }
-      end
 
-      protected
-
-      def registry_sequence(id)
-        # Attempt to get the sequence
-        seq = @registry.get(id)
-        return nil if !seq
-
-        # Go through all the registered plugins and get all the hooks
-        # for this sequence.
-        Vagrant.plugin("1").registered.each do |plugin|
-          hooks  = plugin.action_hook(Vagrant::Plugin::V1::ALL_ACTIONS)
-          hooks += plugin.action_hook(id)
-
-          hooks.each do |hook|
-            hook.call(seq)
-          end
-        end
-
-        # Return the sequence
-        seq
+        # Return the environment in case there are things in there that
+        # the caller wants to use.
+        environment
       end
     end
   end

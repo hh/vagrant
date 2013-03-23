@@ -2,16 +2,17 @@ require "vagrant"
 
 module VagrantPlugins
   module CommandStatus
-    autoload :Command, File.expand_path("../command", __FILE__)
-
-    class Plugin < Vagrant.plugin("1")
+    class Plugin < Vagrant.plugin("2")
       name "status command"
       description <<-DESC
-      The `status` command shows the status of all your virtual machines
-      in this environment.
+      The `status` command shows what the running state (running/saved/..)
+      is of all your virtual machines in this environment.
       DESC
 
-      command("status") { Command }
+      command("status") do
+        require File.expand_path("../command", __FILE__)
+        Command
+      end
     end
   end
 end

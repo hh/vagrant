@@ -1,6 +1,8 @@
+require "set"
+
 module Vagrant
   module Config
-    class V1
+    module V1
       # This is the root configuration class. An instance of this is what
       # is passed into version 1 Vagrant configuration blocks.
       class Root
@@ -9,8 +11,9 @@ module Vagrant
         #
         # @param [Hash] config_map Map of key to config class.
         def initialize(config_map, keys=nil)
-          @keys       = keys || {}
-          @config_map = config_map
+          @keys              = keys || {}
+          @config_map        = config_map
+          @missing_key_calls = Set.new
         end
 
         # We use method_missing as a way to get the configuration that is
@@ -25,29 +28,19 @@ module Vagrant
             @keys[name] = config_klass.new
             return @keys[name]
           else
-            # Super it up to probably raise a NoMethodError
-            super
+            # Record access to a missing key as an error
+            @missing_key_calls.add(name.to_s)
+            return DummyConfig.new
           end
         end
 
-        # Validates the configuration classes of this instance and raises an
-        # exception if they are invalid. If you are implementing a custom configuration
-        # class, the method you want to implement is {Base#validate}. This is
-        # the method that checks all the validation, not one which defines
-        # validation rules.
-        def validate!(env)
-          # Validate each of the configured classes and store the results into
-          # a hash.
-          errors = @keys.inject({}) do |container, data|
-            key, instance = data
-            recorder = ErrorRecorder.new
-            instance.validate(env, recorder)
-            container[key.to_sym] = recorder if !recorder.errors.empty?
-            container
+        # Called to finalize this object just prior to it being used by
+        # the Vagrant system. The "!" signifies that this is expected to
+        # mutate itself.
+        def finalize!
+          @keys.each do |_key, instance|
+            instance.finalize!
           end
-
-          return if errors.empty?
-          raise Errors::ConfigValidationFailed, :messages => Util::TemplateRenderer.render("config/validation_failed", :errors => errors)
         end
 
         # Returns the internal state of the root object. This is used
@@ -56,8 +49,9 @@ module Vagrant
         # clashes with potential configuration keys.
         def __internal_state
           {
-            "config_map" => @config_map,
-            "keys"       => @keys
+            "config_map"        => @config_map,
+            "keys"              => @keys,
+            "missing_key_calls" => @missing_key_calls
           }
         end
       end

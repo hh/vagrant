@@ -29,7 +29,27 @@ module Vagrant
       def execute
         # Get the timeout, if we have one
         timeout = @options[:timeout]
+
+        # Get the working directory
         workdir = @options[:workdir] || Dir.pwd
+
+        # Get what we're interested in being notified about
+        notify  = @options[:notify] || []
+        notify  = [notify] if !notify.is_a?(Array)
+        if notify.empty? && block_given?
+          # If a block is given, subscribers must be given, otherwise the
+          # block is never called. This is usually NOT what you want, so this
+          # is an error.
+          message = "A list of notify subscriptions must be given if a block is given"
+          raise ArgumentError, message
+        end
+
+        # Let's get some more useful booleans that we access a lot so
+        # we're not constantly calling an `include` check
+        notify_table = {}
+        notify_table[:stderr] = notify.include?(:stderr)
+        notify_table[:stdout] = notify.include?(:stdout)
+        notify_stdin  = notify.include?(:stdin)
 
         # Build the ChildProcess
         @logger.info("Starting process: #{@command.inspect}")
@@ -55,10 +75,10 @@ module Vagrant
           Dir.chdir(workdir) do
             process.start
           end
-        rescue ChildProcess::LaunchError
+        rescue ChildProcess::LaunchError => ex
           # Raise our own version of the error so that users of the class
           # don't need to be aware of ChildProcess
-          raise LaunchError
+          raise LaunchError.new(ex.message)
         end
 
         # Make sure the stdin does not buffer
@@ -80,14 +100,17 @@ module Vagrant
 
         @logger.debug("Selecting on IO")
         while true
-          results = IO.select([stdout, stderr], [process.io.stdin], nil, timeout || 5)
-          readers, writers = results
+          writers = notify_stdin ? [process.io.stdin] : []
+          results = IO.select([stdout, stderr], writers, nil, timeout || 0.1)
+          results ||= []
+          readers = results[0]
+          writers = results[1]
 
           # Check if we have exceeded our timeout
           raise TimeoutExceeded, process.pid if timeout && (Time.now.to_i - start_time) > timeout
 
           # Check the readers to see if they're ready
-          if !readers.empty?
+          if readers && !readers.empty?
             readers.each do |r|
               # Read from the IO object
               data = read_io(r)
@@ -96,10 +119,10 @@ module Vagrant
               next if data.empty?
 
               io_name = r == stdout ? :stdout : :stderr
-              @logger.debug("#{io_name}: #{data}")
+              @logger.debug("#{io_name}: #{data.chomp}")
 
               io_data[io_name] += data
-              yield io_name, data if block_given?
+              yield io_name, data if block_given? && notify_table[io_name]
             end
           end
 
@@ -109,7 +132,7 @@ module Vagrant
           break if process.exited?
 
           # Check the writers to see if they're ready, and notify any listeners
-          if !writers.empty?
+          if writers && !writers.empty?
             yield :stdin, process.io.stdin if block_given?
           end
         end
@@ -136,9 +159,9 @@ module Vagrant
           next if extra_data == ""
 
           # Log it out and accumulate
-          @logger.debug(extra_data)
           io_name = io == stdout ? :stdout : :stderr
           io_data[io_name] += extra_data
+          @logger.debug("#{io_name}: #{extra_data.chomp}")
 
           # Yield to any listeners any remaining data
           yield io_name, extra_data if block_given?
@@ -176,7 +199,7 @@ module Vagrant
               # We have to do this since `readpartial` will actually block
               # until data is available, which can cause blocking forever
               # in some cases.
-              results = IO.select([io], nil, nil, 1)
+              results = IO.select([io], nil, nil, 0.1)
               break if !results || results[0].empty?
 
               # Read!

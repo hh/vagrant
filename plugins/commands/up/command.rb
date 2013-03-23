@@ -1,16 +1,26 @@
 require 'optparse'
 
+require "vagrant"
+
+require File.expand_path("../start_mixins", __FILE__)
+
 module VagrantPlugins
   module CommandUp
-    class Command < Vagrant::Command::Base
+    class Command < Vagrant.plugin("2", :command)
       include StartMixins
 
       def execute
         options = {}
-        opts = OptionParser.new do |opts|
-          opts.banner = "Usage: vagrant up [vm-name] [--[no-]provision] [-h]"
-          opts.separator ""
-          build_start_options(opts, options)
+        opts = OptionParser.new do |o|
+          o.banner = "Usage: vagrant up [vm-name] [--[no-]provision] [--provider provider] [-h]"
+          o.separator ""
+
+          build_start_options(o, options)
+
+          o.on("--provider provider", String,
+               "Back the machine with a specific provider.") do |provider|
+            options[:provider] = provider
+          end
         end
 
         # Parse the options
@@ -19,20 +29,17 @@ module VagrantPlugins
 
         # Go over each VM and bring it up
         @logger.debug("'Up' each target VM...")
-        with_target_vms(argv) do |vm|
-          if vm.created?
-            @logger.info("Booting: #{vm.name}")
-            vm.ui.info I18n.t("vagrant.commands.up.vm_created")
-            vm.start(options)
-          else
-            @logger.info("Creating: #{vm.name}")
-            vm.up(options)
-          end
+        with_target_vms(argv, :provider => options[:provider]) do |machine|
+          @env.ui.info(I18n.t(
+            "vagrant.commands.up.upping",
+            :name => machine.name,
+            :provider => machine.provider_name))
+          machine.action(:up, options)
         end
 
         # Success, exit status 0
         0
-       end
+      end
     end
   end
 end

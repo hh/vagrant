@@ -2,12 +2,18 @@ require 'optparse'
 
 module VagrantPlugins
   module CommandProvision
-    class Command < Vagrant::Command::Base
+    class Command < Vagrant.plugin("2", :command)
       def execute
         options = {}
+        options[:provision_types] = nil
 
-        opts = OptionParser.new do |opts|
-          opts.banner = "Usage: vagrant provision [vm-name]"
+        opts = OptionParser.new do |o|
+          o.banner = "Usage: vagrant provision [vm-name] [--provision-with x,y,z]"
+
+          o.on("--provision-with x,y,z", Array,
+                    "Enable only certain provisioners, by type.") do |list|
+            options[:provision_types] = list.map { |type| type.to_sym }
+          end
         end
 
         # Parse the options
@@ -16,25 +22,13 @@ module VagrantPlugins
 
         # Go over each VM and provision!
         @logger.debug("'provision' each target VM...")
-        with_target_vms(argv) do |vm|
-
-          if vm.created?
-            if vm.state == :running
-              @logger.info("Provisioning: #{vm.name}")
-              vm.provision
-            else
-              @logger.info("#{vm.name} not running. Not provisioning.")
-              vm.ui.info I18n.t("vagrant.commands.common.vm_not_running")
-            end
-          else
-            @logger.info("#{vm.name} not created. Not provisioning.")
-            vm.ui.info I18n.t("vagrant.commands.common.vm_not_created")
-          end
+        with_target_vms(argv) do |machine|
+          machine.action(:provision, options)
         end
 
         # Success, exit status 0
         0
-       end
+      end
     end
   end
 end

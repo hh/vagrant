@@ -9,18 +9,39 @@ module Vagrant
     #
     # Building an action sequence is very easy:
     #
-    #     app = Vagrant::Action::Builder.new do
-    #       use MiddlewareA
-    #       use MiddlewareB
+    #     app = Vagrant::Action::Builder.new.tap do |b|
+    #       b.use MiddlewareA
+    #       b.use MiddlewareB
     #     end
     #
     #     Vagrant::Action.run(app)
     #
     class Builder
-      # Initializes the builder. An optional block can be passed which
-      # will be evaluated in the context of the instance.
-      def initialize(&block)
-        instance_eval(&block) if block_given?
+      # This is the stack of middlewares added. This should NOT be used
+      # directly.
+      #
+      # @return [Array]
+      attr_reader :stack
+
+      # This is a shortcut for a middleware sequence with only one item
+      # in it. For a description of the arguments and the documentation, please
+      # see {#use} instead.
+      #
+      # @return [Builder]
+      def self.build(middleware, *args, &block)
+        new.use(middleware, *args, &block)
+      end
+
+      def initialize
+        @stack = []
+      end
+
+      # Implement a custom copy that copies the stack variable over so that
+      # we don't clobber that.
+      def initialize_copy(original)
+        super
+
+        @stack = original.stack.dup
       end
 
       # Returns a mergeable version of the builder. If `use` is called with
@@ -38,11 +59,6 @@ module Vagrant
       #
       # @param [Class] middleware The middleware class
       def use(middleware, *args, &block)
-        # Prepend with a environment setter if args are given
-        if !args.empty? && args.first.is_a?(Hash) && middleware != Env::Set
-          self.use(Env::Set, args.shift, &block)
-        end
-
         if middleware.kind_of?(Builder)
           # Merge in the other builder's stack into our own
           self.stack.concat(middleware.stack)
@@ -106,24 +122,32 @@ module Vagrant
         nil
       end
 
-      protected
-
-      # Returns the current stack of middlewares. You probably won't
-      # need to use this directly, and it's recommended that you don't.
-      #
-      # @return [Array]
-      def stack
-        @stack ||= []
-      end
-
       # Converts the builder stack to a runnable action sequence.
       #
       # @param [Vagrant::Action::Environment] env The action environment
       # @return [Object] A callable object
       def to_app(env)
+        app_stack = nil
+
+        # If we have action hooks, then we apply them
+        if env[:action_hooks]
+          builder = self.dup
+
+          # Apply all the hooks to the new builder instance
+          env[:action_hooks].each do |hook|
+            hook.apply(builder)
+          end
+
+          # The stack is now the result of the new builder
+          app_stack = builder.stack.dup
+        end
+
+        # If we don't have a stack then default to using our own
+        app_stack ||= stack.dup
+
         # Wrap the middleware stack with the Warden to provide a consistent
         # and predictable behavior upon exceptions.
-        Warden.new(stack.dup, env)
+        Warden.new(app_stack, env)
       end
     end
   end

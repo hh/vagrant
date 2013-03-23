@@ -12,15 +12,21 @@ module Vagrant
     # set later always overrides those set earlier; this is how
     # configuration "scoping" is implemented.
     class Loader
-      # This is an array of symbols specifying the order in which
-      # configuration is loaded. For examples, see the class documentation.
-      attr_accessor :load_order
-
-      def initialize
-        @logger  = Log4r::Logger.new("vagrant::config::loader")
-        @sources = {}
-        @proc_cache = {}
-        @config_cache = {}
+      # Initializes a configuration loader.
+      #
+      # @param [Registry] versions A registry of the available versions and
+      #   their associated loaders.
+      # @param [Array] version_order An array of the order of the versions
+      #   in the registry. This is used to determine if upgrades are
+      #   necessary. Additionally, the last version in this order is always
+      #   considered the "current" version.
+      def initialize(versions, version_order)
+        @logger        = Log4r::Logger.new("vagrant::config::loader")
+        @config_cache  = {}
+        @proc_cache    = {}
+        @sources       = {}
+        @versions      = versions
+        @version_order = version_order
       end
 
       # Set the configuration data for the given name.
@@ -35,7 +41,7 @@ module Vagrant
       # `set` multiple times with the same name will override any previously
       # set values. In this way, the last set data for a given name wins.
       def set(name, sources)
-        @logger.debug("Set #{name.inspect} = #{sources.inspect}")
+        @logger.info("Set #{name.inspect} = #{sources.inspect}")
 
         # Sources should be an array
         sources = [sources] if !sources.kind_of?(Array)
@@ -59,39 +65,98 @@ module Vagrant
         @sources[name] = procs
       end
 
-      # This loads the configured sources in the configured order and returns
+      # This loads the configuration sources in the given order and returns
       # an actual configuration object that is ready to be used.
-      def load
-        @logger.debug("Loading configuration in order: #{@load_order.inspect}")
+      #
+      # @param [Array<Symbol>] order The order of configuration to load.
+      # @return [Object] The configuration object. This is different for
+      #   each configuration version.
+      def load(order)
+        @logger.info("Loading configuration in order: #{order.inspect}")
 
-        unknown_sources = @sources.keys - @load_order
+        unknown_sources = @sources.keys - order
         if !unknown_sources.empty?
           # TODO: Raise exception here perhaps.
           @logger.error("Unknown config sources: #{unknown_sources.inspect}")
         end
 
-        # This will hold our result
-        result = V1.init
+        # Get the current version config class to use
+        current_version      = @version_order.last
+        current_config_klass = @versions.get(current_version)
 
-        @load_order.each do |key|
+        # This will hold our result
+        result = current_config_klass.init
+
+        # Keep track of the warnings and errors that may come from
+        # upgrading the Vagrantfiles
+        warnings = []
+        errors   = []
+
+        order.each do |key|
           next if !@sources.has_key?(key)
 
-          @sources[key].each do |proc|
+          @sources[key].each do |version, proc|
             if !@config_cache.has_key?(proc)
               @logger.debug("Loading from: #{key} (evaluating)")
-              current = V1.load(proc)
-              @config_cache[proc] = current
+
+              # Get the proper version loader for this version and load
+              version_loader = @versions.get(version)
+              version_config = version_loader.load(proc)
+
+              # Store the errors/warnings associated with loading this
+              # configuration. We'll store these for later.
+              version_warnings = []
+              version_errors   = []
+
+              # If this version is not the current version, then we need
+              # to upgrade to the latest version.
+              if version != current_version
+                @logger.debug("Upgrading config from version #{version} to #{current_version}")
+                version_index = @version_order.index(version)
+                current_index = @version_order.index(current_version)
+
+                (version_index + 1).upto(current_index) do |index|
+                  next_version = @version_order[index]
+                  @logger.debug("Upgrading config to version #{next_version}")
+
+                  # Get the loader of this version and ask it to upgrade
+                  loader = @versions.get(next_version)
+                  upgrade_result = loader.upgrade(version_config)
+
+                  this_warnings = upgrade_result[1]
+                  this_errors   = upgrade_result[2]
+                  @logger.debug("Upgraded to version #{next_version} with " +
+                                "#{this_warnings.length} warnings and " +
+                                "#{this_errors.length} errors")
+
+                  # Append loading this to the version warnings and errors
+                  version_warnings += this_warnings
+                  version_errors   += this_errors
+
+                  # Store the new upgraded version
+                  version_config = upgrade_result[0]
+                end
+              end
+
+              # Cache the loaded configuration along with any warnings
+              # or errors so that they can be retrieved later.
+              @config_cache[proc] = [version_config, version_warnings, version_errors]
             else
               @logger.debug("Loading from: #{key} (cache)")
             end
 
             # Merge the configurations
-            result = V1.merge(result, @config_cache[proc])
+            cache_data = @config_cache[proc]
+            result = current_config_klass.merge(result, cache_data[0])
+
+            # Append the total warnings/errors
+            warnings += cache_data[1]
+            errors   += cache_data[2]
           end
         end
 
-        @logger.debug("Configuration loaded successfully")
-        result
+        @logger.debug("Configuration loaded successfully, finalizing and returning")
+        [current_config_klass.finalize(result), warnings, errors]
       end
 
       protected
@@ -101,25 +166,56 @@ module Vagrant
       # the configuration object and are expected to mutate this
       # configuration object.
       def procs_for_source(source)
-        return [source] if source.is_a?(Proc)
+        # Convert all pathnames to strings so we just have their path
+        source = source.to_s if source.is_a?(Pathname)
 
-        # Assume all string sources are actually pathnames
-        source = Pathname.new(source) if source.is_a?(String)
+        if source.is_a?(Array)
+          # An array must be formatted as [version, proc], so verify
+          # that and then return it
+          raise ArgumentError, "String source must have format [version, proc]" if source.length != 2
 
-        if source.is_a?(Pathname)
-          @logger.debug("Load procs for pathname: #{source.inspect}")
+          # Return it as an array since we're expected to return an array
+          # of [version, proc] pairs, but an array source only has one.
+          return [source]
+        elsif source.is_a?(String)
+          # Strings are considered paths, so load them
+          return procs_for_path(source)
+        else
+          raise ArgumentError, "Unknown configuration source: #{source.inspect}"
+        end
+      end
 
+      # This returns an array of `Proc` objects for the given path source.
+      #
+      # @param [String] path Path to the file which contains the proper
+      #   `Vagrant.configure` calls.
+      # @return [Array<Proc>]
+      def procs_for_path(path)
+        @logger.debug("Load procs for pathname: #{path}")
+
+        return Config.capture_configures do
           begin
-            return Config.capture_configures do
-              Kernel.load source
-            end
+            Kernel.load path
           rescue SyntaxError => e
             # Report syntax errors in a nice way.
             raise Errors::VagrantfileSyntaxError, :file => e.message
+          rescue SystemExit
+            # Continue raising that exception...
+            raise
+          rescue Vagrant::Errors::VagrantError
+            # Continue raising known Vagrant errors since they already
+            # contain well worded error messages and context.
+            raise
+          rescue Exception => e
+            @logger.error("Vagrantfile load error: #{e.message}")
+            @logger.error(e.backtrace.join("\n"))
+
+            # Report the generic exception
+            raise Errors::VagrantfileLoadError,
+              :path => path,
+              :message => e.message
           end
         end
-
-        raise Exception, "Unknown configuration source: #{source.inspect}"
       end
     end
   end

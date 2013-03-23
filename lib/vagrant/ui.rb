@@ -14,7 +14,7 @@ module Vagrant
     class Interface
       attr_accessor :resource
 
-      def initialize(resource)
+      def initialize(resource=nil)
         @logger   = Log4r::Logger.new("vagrant::ui::interface")
         @resource = resource
       end
@@ -73,8 +73,11 @@ module Vagrant
         # Output the data
         say(:info, message, opts)
 
-        # Get the results and chomp off the newline
-        $stdin.gets.chomp
+        # Get the results and chomp off the newline. We do a logical OR
+        # here because `gets` can return a nil, for example in the case
+        # that ctrl-D is pressed on the input.
+        input = $stdin.gets || ""
+        input.chomp
       end
 
       # This is used to output progress reports to the UI.
@@ -96,7 +99,6 @@ module Vagrant
       def clear_line
         reset = "\r"
         reset += "\e[0K" unless Util::Platform.windows?
-        reset
 
         info(reset, :new_line => false)
       end
@@ -123,7 +125,7 @@ module Vagrant
       # This is called by `say` to format the message for output.
       def format_message(type, message, opts=nil)
         opts ||= {}
-        message = "[#{@resource}] #{message}" if opts[:prefix]
+        message = "[#{@resource}] #{message}" if @resource && opts[:prefix]
         message
       end
     end

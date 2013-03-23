@@ -1,6 +1,8 @@
 require 'rbconfig'
 require 'tempfile'
 
+require "vagrant/util/subprocess"
+
 module Vagrant
   module Util
     # This class just contains some platform checking code.
@@ -12,6 +14,10 @@ module Vagrant
 
         def leopard?
           platform.include?("darwin9")
+        end
+
+        def cygwin?
+          platform.include?("cygwin")
         end
 
         [:darwin, :bsd, :freebsd, :linux, :solaris].each do |type|
@@ -42,6 +48,19 @@ module Vagrant
         # @return [Boolean]
         def bit32?
           !bit64?
+        end
+
+        # This takes as input a path as a string and converts it into
+        # a platform-friendly version of the path. This is most important
+        # when using the path in shell environments with Cygwin.
+        #
+        # @param [String] path
+        # @return [String]
+        def platform_path(path)
+          return path if !cygwin?
+
+          process = Subprocess.execute("cygpath", "-u", path.to_s)
+          process.stdout.chomp
         end
 
         # Returns a boolean noting whether the terminal supports color.

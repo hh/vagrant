@@ -1,27 +1,205 @@
-## 1.1.0 (unreleased)
+## 1.1.3 (unreleased)
 
+IMPROVEMENTS:
+
+  - Puppet apply provisioner now retains the default module path
+    even while specifying custom module paths. [GH-1207]
+  - Re-added DHCP support for host-only networks. [GH-1466]
+  - Ability to specify a plugin version, plugin sources, and
+    pre-release versions using `--plugin-version`, `--plugin-source`,
+    and `--plugin-prerelease`. [GH-1461]
+  - Move VirtualBox guest addition checks to after the machine
+    boots. [GH-1179]
+  - Removed `Vagrant::TestHelpers` because it doesn't really work anymore.
+
+BUG FIXES:
+
+  - Attempt to re-establish SSH connection on `Net::SSH::Disconnect`
+  - Allow any value that can convert to a string for `Vagrant.plugin`
+  - Chef solo `recipe_url` works properly again. [GH-1467]
+  - Port collision detection works properly in VirtualBox with
+    auto-corrected ports. [GH-1472]
+  - Fix obscure error when temp directory is world writable when
+    adding boxes.
+  - Improved error handling around network interface detection for
+    VirtualBox [GH-1480]
+
+## 1.1.2 (March 18, 2013)
+
+BUG FIXES:
+
+  - When not specifying a cookbooks_path for chef-solo, an error won't
+    be shown if "cookbooks" folder is missing.
+  - Fix typo for exception when no host-only network with NFS. [GH-1448]
+  - Use UNSET_VALUE/nil with args on shell provisioner by default since
+    `[]` was too truthy. [GH-1447]
+
+## 1.1.1 (March 18, 2013)
+
+IMPROVEMENTS:
+
+  - Don't load plugins on any `vagrant plugin` command, so that errors
+    are avoided. [GH-1418]
+  - An error will be shown if you forward a port to the same host port
+    multiple times.
+  - Automatically convert network, provider, and provisioner names to
+    symbols internally in case people define them as strings.
+  - Using newer versions of net-ssh and net-scp. [GH-1436]
+
+BUG FIXES:
+
+  - Quote keys to StringBlockEditor so keys with spaces, parens, and
+    so on work properly.
+  - When there is no route to host for SSH, re-establish a new connection.
+  - `vagrant package` once again works, no more nil error. [GH-1423]
+  - Human friendly error when "metadata.json" is missing in a box.
+  - Don't use the full path to the manifest file with the Puppet provisioner
+    because it exposes a bug with Puppet path lookup on VMware.
+  - Fix bug in VirtualBox provider where port forwarding just didn't work if
+    you attempted to forward to a port under 1024. [GH-1421]
+  - Fix cross-device box adds for Windows. [GH-1424]
+  - Fix minor issues with defaults of configuration of the shell
+    provisioner.
+  - Fix Puppet server using "host_name" instead of "hostname" [GH-1444]
+  - Raise a proper error if no hostonly network is found for NFS with
+    VirtualBox. [GH-1437]
+
+## 1.1.0 (March 14, 2013)
+
+BACKWARDS INCOMPATIBILITIES:
+
+  - Vagrantfiles from 1.0.x that _do not use_ any plugins are fully
+    backwards compatible. If plugins are used, they must be removed prior
+    to upgrading. The new plugin system in place will avoid this issue in
+    the future.
+  - Lots of changes introduced in the form of a new configuration version and
+    format, but this is _opt-in_. Old Vagrantfile format continues to be supported,
+    as promised. To use the new features that will be introduced throughout
+    the 1.x series, you'll have to upgrade at some point.
+
+FEATURES:
+
+  - Groundwork for **providers**, alternate backends for Vagrant that
+    allow Vagrant to power systems other than VirtualBox. Much improvement
+    and change will come to this throughout the 1.x lifecycle. The API
+    will continue to change, features will be added, and more. Specifically,
+    a revamped system for handling shared folders gracefully across providers
+    will be introduced in a future release.
   - New plugin system which adds much more structure and stability to
     the overall API. The goal of this system is to make it easier to write
     powerful plugins for Vagrant while providing a backwards-compatible API
     so that plugins will always _load_ (though they will almost certainly
     not be _functional_ in future versions of Vagrant).
-  - Plugins no longer "autoload" by simply gem installing them. This increases
-    Vagrant's initial startup time considerably. To replace this, you must now
-    explicitly require plugins in the `~/.vagrantrc` file, using
-    `Vagrant.require_plugin`.
-  - Improve the SSH "ready?" check. [GH-841]
+  - Plugins are now installed and managed using the `vagrant plugin` interface.
+  - Allow "file://" URLs for box URLs. [GH-1087]
+  - Emit "vagrant-mount" upstart event when NFS shares are mounted. [GH-1118]
+  - Add a VirtualBox provider config `auto_nat_dns_proxy` which when set to
+    false will not attempt to automatically manage NAT DNS proxy settings
+    with VirtualBox. [GH-1313]
+  - `vagrant provision` accepts the `--provision-with` flag [GH-1167]
+  - Set the name of VirtualBox machines with `virtualbox.name` in the
+    VirtualBox provider config. [GH-1126]
+  - `vagrant ssh` will execute an `ssh` binary on Windows if it is on
+    your PATH. [GH-933]
+  - The environmental variable `VAGRANT_VAGRANTFILE` can be used to
+    specify an alternate Vagrantfile filename.
+
+IMPROVEMENTS / BUG FIXES:
+
+  - Vagrant works much better in Cygwin environments on Windows by
+    properly resolving Cygwin paths. [GH-1366]
+  - Improve the SSH "ready?" check by more gracefully handling timeouts. [GH-841]
   - Human friendly error if connection times out for HTTP downloads. [GH-849]
   - Detect when the VirtualBox installation is incomplete and error. [GH-846]
-  - Use `LogLevel QUIET` for SSH to suppress the known hosts warning. [GH-847]
+  - Detect when kernel modules for VirtualBox need to be installed on Gentoo
+    systems and report a user-friendly error. [GH-710]
+  - All `vagrant` commands that can take a target VM name can take one even
+    if you're not in a multi-VM environment. [GH-894]
+  - Hostname is set before networks are setup to avoid very slow `sudo`
+    speeds on CentOS. [GH-922]
+  - `config.ssh.shell` now includes the flags to pass to it, such as `-l` [GH-917]
+  - The check for whether a port is open or not is more complete by
+    catching ENETUNREACH errors. [GH-948]
+  - SSH uses LogLevel FATAL so that errors are still shown.
+  - Sending a SIGINT (Ctrl-C) very early on when executing `vagrant` no
+    longer results in an ugly stack trace.
+  - Chef JSON configuration output is now pretty-printed to be
+    human readable. [GH-1146]
+    that SSHing succeeds when booting a machine.
   - VMs in the "guru meditation" state can be destroyed now using
     `vagrant destroy`.
   - Fix issue where changing SSH key permissions didn't properly work. [GH-911]
-  - Disable the NAT DNS proxy when the DNS server is already proxied to
-    localhost on Linux machines. This fixes issues with 12.04. [GH-909]
   - Fix issue where Vagrant didn't properly detect VBoxManage on Windows
     if VBOX_INSTALL_PATH contained multiple paths. [GH-885]
-  - All `vagrant` commands that can take a target VM name can take one even
-    if you're not in a multi-VM environment. [GH-894]
+  - Fix typo in setting host name for Gentoo guests. [GH-931]
+  - Files that are included with `vagrant package --include` now properly
+    preserve file attributes on earlier versions of Ruby. [GH-951]
+  - Multiple interfaces now work with Arch linux guests. [GH-957]
+  - Fix issue where subprocess execution would always spin CPU of Ruby
+    process to 100%. [GH-832]
+  - Fix issue where shell provisioner would sometimes never end. [GH-968]
+  - Fix issue where puppet would reorder module paths. [GH-964]
+  - When console input is asked for (destroying a VM, bridged interfaces, etc.),
+    keystrokes such as ctrl-D and ctrl-C are more gracefully handled. [GH-1017]
+  - Fixed bug where port check would use "localhost" on systems where
+    "localhost" is not available. [GH-1057]
+  - Add missing translation for "saving" state on VirtualBox. [GH-1110]
+  - Proper error message if the remote end unexpectedly resets the connection
+    while downloading a box over HTTP. [GH-1090]
+  - Human-friendly error is raised if there are permission issues when
+    using SCP to upload files. [GH-924]
+  - Box adding doesn't use `/tmp` anymore which can avoid some cross-device
+    copy issues. [GH-1199]
+  - Vagrant works properly in folders with strange characters. [GH-1223]
+  - Vagrant properly handles "paused" VirtualBox machines. [GH-1184]
+  - Better behavior around permissions issues when copying insecure
+    private key. [GH-580]
+
+## 1.0.7 (March 13, 2013)
+
+  - Detect if a newer version of Vagrant ran and error if it did,
+    because we're not forward-compatible.
+  - Check for guest additions version AFTER booting. [GH-1179]
+  - Quote IdentityFile in `ssh-config` so private keys with spaces in
+    the path work. [GH-1322]
+  - Fix issue where multiple Puppet module paths can be re-ordered [GH-964]
+  - Shell provisioner won't hang on Windows anymore due to unclosed
+    tempfile. [GH-1040]
+  - Retry setting default VM name, since it sometimes fails first time. [GH-1368]
+  - Support setting hostname on Suse [GH-1063]
+
+## 1.0.6 (December 21, 2012)
+
+  - Shell provisioner outputs proper line endings on Windows [GH-1164]
+  - SSH upload opens file to stream which fixes strange upload issues.
+  - Check for proper exit codes for Puppet, since multiple exit codes
+    can mean success. [GH-1180]
+  - Fix issue where DNS doesn't resolve properly for 12.10. [GH-1176]
+  - Allow hostname to be a substring of the box name for Ubuntu [GH-1163]
+  - Use `puppet agent` instead of `puppetd` to be Puppet 3.x
+    compatible. [GH-1169]
+  - Work around bug in VirtualBox exposed by bug in OS X 10.8 where
+    VirtualBox executables couldn't handle garbage being injected into
+    stdout by OS X.
+
+## 1.0.5 (September 18, 2012)
+
+  - Work around a critical bug in VirtualBox 4.2.0 on Windows that
+    causes Vagrant to not work. [GH-1130]
+  - Plugin loading works better on Windows by using the proper
+    file path separator.
+  - NFS works on Fedora 16+. [GH-1140]
+  - NFS works with newer versions of Arch hosts that use systemd. [GH-1142]
+
+## 1.0.4 (September 13, 2012)
+
+  - VirtualBox 4.2 driver. [GH-1120]
+  - Correct `ssh-config` help to use `--host`, not `-h`.
+  - Use "127.0.0.1" instead of "localhost" for port checking to fix problem
+    where "localhost" is not properly setup. [GH-1057]
+  - Disable read timeout on Net::HTTP to avoid `rbuf_fill` error. [GH-1072]
+  - Retry SSH on `EHOSTUNREACH` errors.
+  - Add missing translation for "saving" state. [GH-1110]
 
 ## 1.0.3 (May 1, 2012)
 
